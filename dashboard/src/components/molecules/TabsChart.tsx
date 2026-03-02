@@ -100,11 +100,13 @@ export default function TabsChart({
     });
   }, [data, memoryData, serverData]);
 
-  // Show empty state only if no data at all
-  if (mergedData.length === 0) {
+  // Show empty state if no data or too few points to render meaningfully
+  if (mergedData.length < 2) {
     return (
       <div className="flex h-[200px] items-center justify-center rounded-lg border border-border-subtle bg-bg-surface text-sm text-text-muted">
-        Collecting data...
+        {mergedData.length === 0
+          ? "Collecting data..."
+          : "Waiting for more data..."}
       </div>
     );
   }
