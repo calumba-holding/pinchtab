@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# pdev — Pinchtab developer toolkit
+# Usage: pdev [command]    Run a command directly
+#        pdev              Interactive picker
+
+cd "$(dirname "$0")"
+
+BOLD=$'\033[1m'
+ACCENT=$'\033[38;2;251;191;36m'
+MUTED=$'\033[38;2;90;100;128m'
+SUCCESS=$'\033[38;2;0;229;204m'
+NC=$'\033[0m'
+
+# ── Commands ─────────────────────────────────────────────────────────
+# name:emoji:description:script
+COMMANDS=(
+  "check:🧪:Run pre-push checks (format, vet, build, test, lint):scripts/check.sh"
+  "dev:🚀:Build & run with dashboard:scripts/dev.sh"
+  "doctor:🩺:Verify & setup dev environment:scripts/doctor.sh"
+  "dashboard:📦:Build React dashboard:scripts/build-dashboard.sh"
+  "security:🔒:Run gosec security scan:scripts/check-gosec.sh"
+  "docs:📖:Check docs JSON structure:scripts/check-docs-json.sh"
+  "hooks:🪝:Install git hooks:scripts/install-hooks.sh"
+)
+
+# ── Helpers ──────────────────────────────────────────────────────────
+
+show_help() {
+  echo ""
+  echo "  ${ACCENT}${BOLD}🦀 Pinchtab Dev${NC}"
+  echo ""
+  for cmd in "${COMMANDS[@]}"; do
+    IFS=':' read -r name emoji desc script <<< "$cmd"
+    printf "  ${SUCCESS}%s${NC}  ${BOLD}%-12s${NC} ${MUTED}%s${NC}\n" "$emoji" "$name" "$desc"
+  done
+  echo ""
+  echo "  ${MUTED}Usage: pdev [command]${NC}"
+  echo ""
+}
+
+run_command() {
+  local target="$1"
+  for cmd in "${COMMANDS[@]}"; do
+    IFS=':' read -r name emoji desc script <<< "$cmd"
+    if [ "$name" = "$target" ]; then
+      echo ""
+      echo "  ${ACCENT}${BOLD}$emoji $desc${NC}"
+      echo ""
+      exec bash "$script"
+    fi
+  done
+  echo "  Unknown command: $target"
+  show_help
+  exit 1
+}
+
+pick_with_gum() {
+  local options=()
+  for cmd in "${COMMANDS[@]}"; do
+    IFS=':' read -r name emoji desc script <<< "$cmd"
+    options+=("$emoji  $name — $desc")
+  done
+
+  local choice
+  choice=$(printf '%s\n' "${options[@]}" | gum choose \
+    --header "🦀 Pinchtab Dev" \
+    --header.foreground "#fbbf24" \
+    --cursor.foreground "#00e5cc" \
+    --selected.foreground "#00e5cc")
+
+  # Extract command name from choice
+  local picked
+  picked=$(echo "$choice" | sed 's/^.*  //' | cut -d' ' -f1)
+  run_command "$picked"
+}
+
+pick_with_select() {
+  echo ""
+  echo "  ${ACCENT}${BOLD}🦀 Pinchtab Dev${NC}"
+  echo ""
+
+  local names=()
+  local i=1
+  for cmd in "${COMMANDS[@]}"; do
+    IFS=':' read -r name emoji desc script <<< "$cmd"
+    printf "  ${MUTED}[%d]${NC} ${SUCCESS}%s${NC}  ${BOLD}%-12s${NC} %s\n" "$i" "$emoji" "$name" "$desc"
+    names+=("$name")
+    i=$((i + 1))
+  done
+
+  echo ""
+  echo -ne "  ${BOLD}Pick [1-${#COMMANDS[@]}]:${NC} "
+  read -r choice
+
+  # Handle numeric or name input
+  if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#COMMANDS[@]} ]; then
+    run_command "${names[$((choice - 1))]}"
+  else
+    run_command "$choice"
+  fi
+}
+
+# ── Main ─────────────────────────────────────────────────────────────
+
+# Direct command
+if [ $# -gt 0 ]; then
+  case "$1" in
+    -h|--help|help) show_help; exit 0 ;;
+    *) run_command "$1" ;;
+  esac
+fi
+
+# Interactive picker
+if command -v gum &>/dev/null; then
+  pick_with_gum
+else
+  pick_with_select
+fi
