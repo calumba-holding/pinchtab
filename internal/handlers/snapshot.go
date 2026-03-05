@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -281,7 +282,13 @@ func (h *Handlers) HandleSnapshot(w http.ResponseWriter, r *http.Request) {
 				web.Error(w, 400, fmt.Errorf("invalid path: %w", err))
 				return
 			}
-			filePath = safe
+			absBase, _ := filepath.Abs(h.Config.StateDir)
+			absPath, err := filepath.Abs(safe)
+			if err != nil || !strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
+				web.Error(w, 400, fmt.Errorf("invalid output path"))
+				return
+			}
+			filePath = absPath
 			if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
 				web.Error(w, 500, fmt.Errorf("create output dir: %w", err))
 				return

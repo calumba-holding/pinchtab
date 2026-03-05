@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chromedp/cdproto/page"
@@ -174,7 +175,13 @@ func (h *Handlers) HandlePDF(w http.ResponseWriter, r *http.Request) {
 				web.Error(w, 400, fmt.Errorf("invalid path: %w", err))
 				return
 			}
-			savePath = safe
+			absBase, _ := filepath.Abs(h.Config.StateDir)
+			absPath, err := filepath.Abs(safe)
+			if err != nil || !strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
+				web.Error(w, 400, fmt.Errorf("invalid output path"))
+				return
+			}
+			savePath = absPath
 			if err := os.MkdirAll(filepath.Dir(savePath), 0750); err != nil {
 				web.Error(w, 500, fmt.Errorf("create dir: %w", err))
 				return

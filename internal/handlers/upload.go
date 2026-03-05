@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -55,17 +56,24 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate local paths stay within the allowed StateDir.
+	absBase, _ := filepath.Abs(h.Config.StateDir)
 	for i, p := range req.Paths {
 		safe, err := web.SafePath(h.Config.StateDir, p)
 		if err != nil {
 			web.Error(w, 400, fmt.Errorf("invalid path: %w", err))
 			return
 		}
-		if _, err := os.Stat(safe); err != nil {
-			web.Error(w, 400, fmt.Errorf("file not found: %s", safe))
+		// Inline sanitizer: CodeQL recognizes filepath.Abs + strings.HasPrefix.
+		absPath, err := filepath.Abs(safe)
+		if err != nil || !strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
+			web.Error(w, 400, fmt.Errorf("path %q escapes allowed directory", p))
 			return
 		}
-		req.Paths[i] = safe
+		if _, err := os.Stat(absPath); err != nil {
+			web.Error(w, 400, fmt.Errorf("file not found: %s", absPath))
+			return
+		}
+		req.Paths[i] = absPath
 	}
 
 	// Decode base64 files to temp dir.

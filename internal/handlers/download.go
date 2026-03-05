@@ -166,7 +166,13 @@ func (h *Handlers) HandleDownload(w http.ResponseWriter, r *http.Request) {
 			web.Error(w, 400, fmt.Errorf("invalid path: %w", pathErr))
 			return
 		}
-		filePath = safe
+		absBase, _ := filepath.Abs(h.Config.StateDir)
+		absPath, pathErr := filepath.Abs(safe)
+		if pathErr != nil || !strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
+			web.Error(w, 400, fmt.Errorf("invalid output path"))
+			return
+		}
+		filePath = absPath
 		if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
 			web.Error(w, 500, fmt.Errorf("failed to create directory: %w", err))
 			return
