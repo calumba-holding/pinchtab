@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -109,12 +108,11 @@ func StartServer(cfg ServerConfig) (*Server, error) {
 		env = append(env, "CHROME_BINARY="+bin)
 	}
 
-	// Process group enables clean shutdown of Chrome children
 	s.cmd = exec.Command(s.BinaryPath) // #nosec G204 -- BinaryPath is from os.MkdirTemp, not user input
 	s.cmd.Env = env
 	s.cmd.Stdout = os.Stdout
 	s.cmd.Stderr = os.Stderr
-	s.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	s.cmd.SysProcAttr = processGroupAttr()
 
 	if err := s.cmd.Start(); err != nil {
 		s.Cleanup()
@@ -147,34 +145,6 @@ func (s *Server) Cleanup() {
 		return
 	}
 	_ = os.RemoveAll(s.Dir)
-}
-
-// TerminateProcessGroup sends SIGTERM to the process group, escalating to
-// SIGKILL if the process doesn't exit within the timeout.
-func TerminateProcessGroup(cmd *exec.Cmd, timeout time.Duration) {
-	if cmd.Process == nil {
-		return
-	}
-
-	if pgid, err := syscall.Getpgid(cmd.Process.Pid); err == nil {
-		_ = syscall.Kill(-pgid, syscall.SIGTERM)
-	} else {
-		_ = cmd.Process.Signal(os.Interrupt)
-	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	select {
-	case <-done:
-		return
-	case <-time.After(timeout):
-		if pgid, err := syscall.Getpgid(cmd.Process.Pid); err == nil {
-			_ = syscall.Kill(-pgid, syscall.SIGKILL)
-		}
-		_ = cmd.Process.Kill()
-		<-done
-	}
 }
 
 func WaitForHealth(base string, timeout time.Duration) bool {
