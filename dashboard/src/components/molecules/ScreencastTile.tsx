@@ -34,8 +34,11 @@ export default function ScreencastTile({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Connect directly to instance's screencast WebSocket
-    const wsUrl = `ws://localhost:${instancePort}/screencast?tabId=${encodeURIComponent(tabId)}&quality=${quality}&maxWidth=${maxWidth}&fps=${fps}`;
+    // Connect directly to instance's screencast WebSocket.
+    // Use window.location.hostname so this works when the dashboard is served
+    // from a remote host (e.g. a headless Ubuntu server) instead of localhost.
+    const host = window.location.hostname;
+    const wsUrl = `ws://${host}:${instancePort}/screencast?tabId=${encodeURIComponent(tabId)}&quality=${quality}&maxWidth=${maxWidth}&fps=${fps}`;
 
     const socket = new WebSocket(wsUrl);
     socket.binaryType = "arraybuffer";
