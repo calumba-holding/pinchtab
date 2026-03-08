@@ -1,4 +1,4 @@
-# Multi-Instance Workflows
+# Multi-Instance
 
 PinchTab can run multiple isolated Chrome instances at the same time. Each running instance has its own browser process, port, tabs, and profile-backed state.
 

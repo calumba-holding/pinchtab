@@ -1,4 +1,4 @@
-# Memory Monitoring Guide
+# Memory Monitoring
 
 PinchTab exposes memory information for the Chrome processes it launches. The current implementation measures browser memory at the process level and reports browser-wide aggregates for each instance.
 

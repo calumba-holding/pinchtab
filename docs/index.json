@@ -18,15 +18,12 @@
     "guides/raspberry-pi.md"
   ],
   "architecture": [
-    "architecture/overview.md",
-    "architecture/overall-system-chart.md",
-    "architecture/instance-model-charts.md",
-    "architecture/managed-bridge-vs-managed-direct-cdp.md",
-    "architecture/chrome-lifecycle-and-orchestration.md",
-    "architecture/find.md",
-    "architecture/scheduler.md"
+    "*"
   ],
   "reference": [
+    "*"
+  ],
+  "implementations": [
     "*"
   ]
 }
