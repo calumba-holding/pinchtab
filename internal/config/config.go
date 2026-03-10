@@ -30,6 +30,7 @@ type RuntimeConfig struct {
 	AllowScreencast bool
 	AllowDownload   bool
 	AllowUpload     bool
+	MaxRedirects    int // Max HTTP redirects (-1=unlimited, 0=none, default=-1)
 
 	// Browser/instance settings
 	Headless          bool
@@ -176,6 +177,7 @@ type SecurityConfig struct {
 	AllowScreencast *bool        `json:"allowScreencast,omitempty"`
 	AllowDownload   *bool        `json:"allowDownload,omitempty"`
 	AllowUpload     *bool        `json:"allowUpload,omitempty"`
+	MaxRedirects    *int         `json:"maxRedirects,omitempty"` // Max HTTP redirects per navigation (-1=unlimited, 0=none, default=-1)
 	Attach          AttachConfig `json:"attach,omitempty"`
 	IDPI            IDPIConfig   `json:"idpi,omitempty"`
 }
@@ -497,6 +499,7 @@ func Load() *RuntimeConfig {
 		AllowScreencast: false,
 		AllowDownload:   false,
 		AllowUpload:     false,
+		MaxRedirects:    -1, // Unlimited by default; set to N to limit redirect hops
 
 		// Browser / instance defaults
 		Headless:          true,
@@ -628,6 +631,9 @@ func applyFileConfig(cfg *RuntimeConfig, fc *FileConfig) {
 	}
 	if fc.Security.AllowUpload != nil {
 		cfg.AllowUpload = *fc.Security.AllowUpload
+	}
+	if fc.Security.MaxRedirects != nil {
+		cfg.MaxRedirects = *fc.Security.MaxRedirects
 	}
 	// IDPI – copy the whole struct; individual fields have safe zero-value defaults.
 	cfg.IDPI = fc.Security.IDPI
@@ -780,6 +786,7 @@ func DefaultFileConfig() FileConfig {
 	allowScreencast := false
 	allowDownload := false
 	allowUpload := false
+	maxRedirects := -1
 	return FileConfig{
 		Server: ServerConfig{
 			Port:     "9867",
@@ -801,6 +808,7 @@ func DefaultFileConfig() FileConfig {
 			AllowScreencast: &allowScreencast,
 			AllowDownload:   &allowDownload,
 			AllowUpload:     &allowUpload,
+			MaxRedirects:    &maxRedirects,
 			Attach: AttachConfig{
 				AllowHosts:   []string{"127.0.0.1", "localhost", "::1"},
 				AllowSchemes: []string{"ws", "wss"},
@@ -853,6 +861,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 	allowScreencast := cfg.AllowScreencast
 	allowDownload := cfg.AllowDownload
 	allowUpload := cfg.AllowUpload
+	maxRedirects := cfg.MaxRedirects
 	attachEnabled := cfg.AttachEnabled
 	start := cfg.InstancePortStart
 	end := cfg.InstancePortEnd
@@ -896,6 +905,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 			AllowScreencast: &allowScreencast,
 			AllowDownload:   &allowDownload,
 			AllowUpload:     &allowUpload,
+			MaxRedirects:    &maxRedirects,
 			Attach: AttachConfig{
 				Enabled:      &attachEnabled,
 				AllowHosts:   append([]string(nil), cfg.AttachAllowHosts...),
