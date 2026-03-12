@@ -1,8 +1,7 @@
-name: E2E Tests
+name: E2E Curl Tests
 
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -16,11 +15,16 @@ on:
         required: false
         default: 'false'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   e2e:
-    name: End-to-End Tests
+    name: E2E Curl Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     
     steps:
       - name: Checkout
@@ -34,11 +38,32 @@ jobs:
       - name: Run E2E tests
         id: e2e
         run: |
+          set +e
           mkdir -p tests/e2e/results
           docker compose -f tests/e2e/docker-compose.yml up \
             --build \
             --abort-on-container-exit \
-            --exit-code-from runner
+            --exit-code-from runner 2>&1 | tee e2e-output.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          
+          # Extract summary from logs
+          PASSED=$(grep -oP 'Passed:\s*\K\d+' e2e-output.log | tail -1 || echo "0")
+          FAILED=$(grep -oP 'Failed:\s*\K\d+' e2e-output.log | tail -1 || echo "0")
+          
+          # Get failed test names if any
+          FAILURES=$(grep -E '✗.*failed' e2e-output.log | sed 's/.*✗ /- /' | head -10 || true)
+          
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          {
+            echo 'failures<<EOF'
+            echo "$FAILURES"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          
+          exit $EXIT_CODE
         env:
           DOCKER_BUILDKIT: 1
           COMPOSE_DOCKER_CLI_BUILD: 1
@@ -48,6 +73,41 @@ jobs:
         run: |
           docker cp $(docker ps -aq -f name=e2e-runner):/results/. tests/e2e/results/ 2>/dev/null || true
           ls -la tests/e2e/results/ || true
+
+      - name: Post summary
+        if: always()
+        run: |
+          if [ "${{ steps.e2e.outputs.failed }}" = "0" ]; then
+            echo "## ✅ E2E Curl Tests Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**${{ steps.e2e.outputs.passed }}** tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ E2E Curl Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Passed:** ${{ steps.e2e.outputs.passed }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Failed:** ${{ steps.e2e.outputs.failed }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Failed tests:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.e2e.outputs.failures }}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Report check annotation
+        if: always()
+        run: |
+          PASSED="${{ steps.e2e.outputs.passed }}"
+          FAILED="${{ steps.e2e.outputs.failed }}"
+          FAILURES="${{ steps.e2e.outputs.failures }}"
+          
+          if [ "$FAILED" = "0" ] || [ -z "$FAILED" ]; then
+            echo "::notice title=E2E Curl Tests::✅ ${PASSED:-All} tests passed"
+          else
+            echo "::error title=E2E Curl Tests::❌ ${FAILED} failed, ${PASSED} passed"
+            echo "$FAILURES" | while read -r line; do
+              [ -n "$line" ] && echo "::warning::$line"
+            done
+          fi
 
       - name: Upload results
         if: always()
@@ -61,70 +121,3 @@ jobs:
         if: failure()
         run: |
           docker compose -f tests/e2e/docker-compose.yml logs pinchtab
-
-      - name: Post PR comment
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const reportPath = 'tests/e2e/results/report.md';
-            
-            let body = '## 🦀 E2E Test Results\n\n';
-            if (fs.existsSync(reportPath)) {
-              body = fs.readFileSync(reportPath, 'utf8');
-            } else {
-              body += '⚠️ No test report generated. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).';
-            }
-            
-            // Find PR for this branch
-            let prNumber = context.issue?.number;
-            
-            if (!prNumber) {
-              // Try to find PR by branch name
-              const branch = context.ref.replace('refs/heads/', '');
-              const { data: prs } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                head: `${context.repo.owner}:${branch}`,
-                state: 'open'
-              });
-              
-              if (prs.length > 0) {
-                prNumber = prs[0].number;
-              }
-            }
-            
-            if (!prNumber) {
-              console.log('No open PR found for this branch, skipping comment');
-              return;
-            }
-            
-            // Delete existing E2E comment so new one appears at end of thread
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-            
-            const botComment = comments.find(c => 
-              c.user.type === 'Bot' && c.body.includes('E2E Test')
-            );
-            
-            if (botComment) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id
-              });
-            }
-            
-            // Create new comment at end of thread
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body
-            });
-            
-            console.log(`Posted comment to PR #${prNumber}`);
