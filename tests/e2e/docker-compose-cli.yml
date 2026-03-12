@@ -1,0 +1,46 @@
+services:
+  # Main pinchtab instance
+  pinchtab:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      PINCHTAB_CONFIG: /config/pinchtab.json
+      PINCHTAB_PORT: "9999"
+    volumes:
+      - ./config/pinchtab.json:/config/pinchtab.json:ro
+    ports:
+      - "9999:9999"
+    shm_size: '2gb'
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9999/health"]
+      interval: 3s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+
+  fixtures:
+    image: nginx:alpine
+    volumes:
+      - ./fixtures:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:80/"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+
+  runner:
+    build:
+      context: ./runner-cli
+    depends_on:
+      pinchtab:
+        condition: service_healthy
+      fixtures:
+        condition: service_healthy
+    environment:
+      - PINCHTAB_URL=http://pinchtab:9999
+      - FIXTURES_URL=http://fixtures:80
+    volumes:
+      - ./scenarios-cli:/scenarios:ro
+      - ./results:/results
+    command: ["/scenarios/run-all.sh"]
