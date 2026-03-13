@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	browseractions "github.com/pinchtab/pinchtab/internal/cli/actions"
@@ -298,12 +300,25 @@ func init() {
 
 func runCLIWith(cfg *config.RuntimeConfig, fn func(client *http.Client, base, token string)) {
 	client := &http.Client{Timeout: 60 * time.Second}
-	dashPort := cfg.Port
-	if dashPort == "" {
-		dashPort = "9870"
+
+	bind := cfg.Bind
+	if bind == "" {
+		bind = "127.0.0.1"
 	}
-	base := fmt.Sprintf("http://localhost:%s", dashPort)
+	port := cfg.Port
+	if port == "" {
+		port = "9867"
+	}
+	base := fmt.Sprintf("http://%s:%s", bind, port)
+
+	if envURL := os.Getenv("PINCHTAB_URL"); envURL != "" {
+		base = strings.TrimRight(envURL, "/")
+	}
+
 	token := cfg.Token
+	if envToken := os.Getenv("PINCHTAB_TOKEN"); envToken != "" {
+		token = envToken
+	}
 
 	fn(client, base, token)
 }
