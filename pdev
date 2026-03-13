@@ -153,14 +153,19 @@ run_command() {
 
 pick_with_gum() {
   local options=()
+  local commands_map=()  # parallel array: full command string for each option
+  local parent=""
   for cmd in "${COMMANDS[@]}"; do
     IFS=':' read -r name emoji desc <<< "$cmd"
     local trimmed="${name#"${name%%[![:space:]]*}"}"
     if [[ "$name" == " "* ]]; then
-      # Subcommand: indent, no emoji
+      # Subcommand: indent, no emoji — prefix with parent
       options+=("$(printf '     %-18s %s' "$trimmed" "$desc")")
+      commands_map+=("$parent $trimmed")
     else
+      parent="$trimmed"
       options+=("$(printf '%s %-18s %s' "$emoji" "$trimmed" "$desc")")
+      commands_map+=("$trimmed")
     fi
   done
 
@@ -172,9 +177,15 @@ pick_with_gum() {
     --selected.foreground "#00e5cc" \
     --item.foreground "#8892b0")
 
-  # Extract command name (first non-space word(s) after optional emoji)
-  local picked
-  picked=$(echo "$choice" | sed 's/^[^a-z]*//' | awk '{if ($2 ~ /^[a-z]/) print $1, $2; else print $1}')
+  # Find the index of the chosen option and look up the full command
+  local picked=""
+  for i in "${!options[@]}"; do
+    if [[ "${options[$i]}" == "$choice" ]]; then
+      picked="${commands_map[$i]}"
+      break
+    fi
+  done
+
   # Clear the picker before streaming command output.
   printf '\033[2J\033[H'
   run_command "$picked"
