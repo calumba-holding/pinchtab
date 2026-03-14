@@ -1,9 +1,12 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/chromedp/chromedp"
 )
 
 type A11yNode struct {
@@ -26,6 +29,97 @@ type RawAXNode struct {
 	Properties       []RawAXProp `json:"properties"`
 	ChildIDs         []string    `json:"childIds"`
 	BackendDOMNodeID int64       `json:"backendDOMNodeId"`
+}
+
+type rawAXTreeResponse struct {
+	Nodes []RawAXNode `json:"nodes"`
+}
+
+type rawFrameTree struct {
+	Frame struct {
+		ID string `json:"id"`
+	} `json:"frame"`
+	ChildFrames []rawFrameTree `json:"childFrames"`
+}
+
+func frameIDs(tree rawFrameTree) []string {
+	ids := make([]string, 0, 1+len(tree.ChildFrames))
+	var walk func(rawFrameTree)
+	walk = func(t rawFrameTree) {
+		if t.Frame.ID != "" {
+			ids = append(ids, t.Frame.ID)
+		}
+		for _, child := range t.ChildFrames {
+			walk(child)
+		}
+	}
+	walk(tree)
+	return ids
+}
+
+// FetchAXTree returns the merged accessibility tree for the current page and any child frames.
+// If frame-aware enumeration fails, it falls back to the page-wide tree so snapshotting keeps working.
+func FetchAXTree(ctx context.Context) ([]RawAXNode, error) {
+	var frameTreeResult json.RawMessage
+	if err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		return chromedp.FromContext(ctx).Target.Execute(ctx, "Page.getFrameTree", nil, &frameTreeResult)
+	})); err != nil {
+		return fetchAXTreeForFrame(ctx, "")
+	}
+
+	var frameResp struct {
+		FrameTree rawFrameTree `json:"frameTree"`
+	}
+	if err := json.Unmarshal(frameTreeResult, &frameResp); err != nil {
+		return fetchAXTreeForFrame(ctx, "")
+	}
+
+	ids := frameIDs(frameResp.FrameTree)
+	if len(ids) == 0 {
+		return fetchAXTreeForFrame(ctx, "")
+	}
+
+	merged := make([]RawAXNode, 0, 256)
+	seen := make(map[string]bool, 256)
+	for _, id := range ids {
+		nodes, err := fetchAXTreeForFrame(ctx, id)
+		if err != nil {
+			continue
+		}
+		for _, n := range nodes {
+			key := n.NodeID
+			if key == "" {
+				key = fmt.Sprintf("backend:%d:%s:%s", n.BackendDOMNodeID, n.Role.String(), n.Name.String())
+			}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			merged = append(merged, n)
+		}
+	}
+	if len(merged) > 0 {
+		return merged, nil
+	}
+	return fetchAXTreeForFrame(ctx, "")
+}
+
+func fetchAXTreeForFrame(ctx context.Context, frameID string) ([]RawAXNode, error) {
+	params := map[string]any{}
+	if frameID != "" {
+		params["frameId"] = frameID
+	}
+	var rawResult json.RawMessage
+	if err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		return chromedp.FromContext(ctx).Target.Execute(ctx, "Accessibility.getFullAXTree", params, &rawResult)
+	})); err != nil {
+		return nil, err
+	}
+	var treeResp rawAXTreeResponse
+	if err := json.Unmarshal(rawResult, &treeResp); err != nil {
+		return nil, err
+	}
+	return treeResp.Nodes, nil
 }
 
 type RawAXValue struct {

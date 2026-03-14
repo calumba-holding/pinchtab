@@ -125,24 +125,14 @@ func (h *Handlers) HandleSnapshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var rawResult json.RawMessage
-	if err := chromedp.Run(tCtx,
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			return chromedp.FromContext(ctx).Target.Execute(ctx,
-				"Accessibility.getFullAXTree", nil, &rawResult)
-		}),
-	); err != nil {
+	nodes, err := bridge.FetchAXTree(tCtx)
+	if err != nil {
 		web.Error(w, 500, fmt.Errorf("a11y tree: %w", err))
 		return
 	}
-
-	var treeResp struct {
+	treeResp := struct {
 		Nodes []bridge.RawAXNode `json:"nodes"`
-	}
-	if err := json.Unmarshal(rawResult, &treeResp); err != nil {
-		web.Error(w, 500, fmt.Errorf("parse a11y tree: %w", err))
-		return
-	}
+	}{Nodes: nodes}
 
 	if selector != "" {
 		var scopeNodeID int64

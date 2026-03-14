@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/pinchtab/pinchtab/internal/bridge"
 	"github.com/pinchtab/pinchtab/internal/semantic"
 	"github.com/pinchtab/pinchtab/internal/web"
@@ -674,20 +673,10 @@ func shouldRetryStaleRef(err error) bool {
 }
 
 func (h *Handlers) refreshRefCache(ctx context.Context, tabID string) {
-	var rawResult json.RawMessage
-	if err := chromedp.Run(ctx,
-		chromedp.ActionFunc(func(c context.Context) error {
-			return chromedp.FromContext(c).Target.Execute(c, "Accessibility.getFullAXTree", nil, &rawResult)
-		}),
-	); err != nil {
+	nodes, err := bridge.FetchAXTree(ctx)
+	if err != nil {
 		return
 	}
-	var treeResp struct {
-		Nodes []bridge.RawAXNode `json:"nodes"`
-	}
-	if err := json.Unmarshal(rawResult, &treeResp); err != nil {
-		return
-	}
-	flat, refs := bridge.BuildSnapshot(treeResp.Nodes, bridge.FilterInteractive, -1)
+	flat, refs := bridge.BuildSnapshot(nodes, bridge.FilterInteractive, -1)
 	h.Bridge.SetRefCache(tabID, &bridge.RefCache{Refs: refs, Nodes: flat})
 }

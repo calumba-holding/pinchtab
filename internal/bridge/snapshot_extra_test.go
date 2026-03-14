@@ -234,3 +234,31 @@ func searchString(s, substr string) bool {
 	}
 	return false
 }
+
+func TestFrameIDs_Recursive(t *testing.T) {
+	tree := rawFrameTree{}
+	tree.Frame.ID = "root"
+	tree.ChildFrames = []rawFrameTree{
+		{Frame: struct {
+			ID string `json:"id"`
+		}{ID: "child-1"}},
+		{
+			Frame: struct {
+				ID string `json:"id"`
+			}{ID: "child-2"},
+			ChildFrames: []rawFrameTree{{Frame: struct {
+				ID string `json:"id"`
+			}{ID: "grandchild"}}},
+		},
+	}
+	got := frameIDs(tree)
+	want := []string{"root", "child-1", "child-2", "grandchild"}
+	if len(got) != len(want) {
+		t.Fatalf("len=%d want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("frameIDs[%d]=%q want %q (all=%v)", i, got[i], want[i], got)
+		}
+	}
+}
