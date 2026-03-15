@@ -32,13 +32,17 @@ Hidden aliases: `goto`, `navigate`, `open`
 
 ```
 pinchtab tab                     # List all tabs
-pinchtab tab <n> / <id>          # Switch to tab 
+pinchtab tab <n>                 # Focus tab by index (1-based)
+pinchtab tab <id>                # Focus tab by ID
 pinchtab tab new                 # Open a new empty tab
 pinchtab tab new <url>           # Open a new tab with URL
-pinchtab tab close <id>          # Close a tab
+pinchtab tab close <n>           # Close tab by index (1-based)
+pinchtab tab close <id>          # Close tab by ID
 ```
 
 Alias: `tabs`
+
+Numeric arguments are resolved as 1-based tab indices via `/tabs`. Non-numeric arguments are passed through as tab IDs.
 
 ## Interaction
 
