@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -30,15 +29,13 @@ func runCLIWith(cfg *config.RuntimeConfig, fn func(cliRuntime)) {
 }
 
 func resolveCLIBase(cfg *config.RuntimeConfig) string {
-	port := cfg.Port
-	if port == "" {
-		port = "9867"
-	}
-	base := fmt.Sprintf("http://127.0.0.1:%s", port)
 	if serverURL != "" {
-		base = strings.TrimRight(serverURL, "/")
+		return strings.TrimRight(serverURL, "/")
 	}
-	return base
+	if envURL := os.Getenv("PINCHTAB_SERVER"); envURL != "" {
+		return strings.TrimRight(envURL, "/")
+	}
+	return "http://127.0.0.1:9867"
 }
 
 func resolveCLIToken(cfg *config.RuntimeConfig) string {
