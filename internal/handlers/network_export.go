@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -375,15 +376,21 @@ func (h *Handlers) HandleNetworkExportStream(w http.ResponseWriter, r *http.Requ
 	keepalive := time.NewTicker(15 * time.Second)
 	defer keepalive.Stop()
 
+	var finalizeOnce sync.Once
 	finalize := func() {
-		_ = enc.Finish()
-		f.Close()
-		// Atomic rename on success (#8)
-		if count > 0 {
-			os.Rename(tmpPath, absPath)
-		} else {
-			os.Remove(tmpPath)
-		}
+		finalizeOnce.Do(func() {
+			_ = enc.Finish()
+			if err := f.Close(); err == nil {
+				// Atomic rename on success (#8)
+				if count > 0 {
+					os.Rename(tmpPath, absPath)
+				} else {
+					os.Remove(tmpPath)
+				}
+			} else {
+				os.Remove(tmpPath)
+			}
+		})
 	}
 
 	for {
