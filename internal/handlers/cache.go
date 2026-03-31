@@ -15,7 +15,8 @@ func (h *Handlers) HandleCacheClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Bridge.ClearCache(r.Context()); err != nil {
+	ctx := h.Bridge.BrowserContext()
+	if err := h.Bridge.ClearCache(ctx); err != nil {
 		if h.writeBridgeUnavailable(w, err) {
 			return
 		}
@@ -34,7 +35,8 @@ func (h *Handlers) HandleCacheStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	canClear, err := h.Bridge.CanClearCache(r.Context())
+	ctx := h.Bridge.BrowserContext()
+	canClear, err := h.Bridge.CanClearCache(ctx)
 	if err != nil {
 		if h.writeBridgeUnavailable(w, err) {
 			return
