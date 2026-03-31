@@ -132,3 +132,28 @@ pt_ok eval "document.querySelector('#email').value"
 assert_output_contains "XYZ" "keyboard inserttext value present"
 
 end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab keyboard type preserves special characters (#412)"
+
+# Issue #412: keyboard type was swallowing dot/period because ASCII 46
+# mapped to Delete key virtualKeyCode instead of Period key.
+
+pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok click --css "#email"
+
+# Type text containing periods (email address)
+pt_ok keyboard type "test@example.com"
+assert_output_contains "typed" "keyboard type response"
+
+# Verify dots were preserved
+pt_ok eval "document.querySelector('#email').value"
+assert_json_field ".result" "test@example.com" "period characters preserved"
+
+# Test IP address (multiple dots)
+pt_ok click --css "#username"
+pt_ok keyboard type "192.168.1.100"
+pt_ok eval "document.querySelector('#username').value"
+assert_json_field ".result" "192.168.1.100" "multiple dots preserved"
+
+end_test
