@@ -96,14 +96,15 @@ func isDashboardReachable(host, port string) bool {
 }
 
 func openBrowser(url string) error {
+	// url is constructed internally from config host+port, not raw user input.
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", url) // #nosec G204 -- url built from internal config values (host:port)
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
+		cmd = exec.Command("cmd", "/c", "start", url) // #nosec G204 -- url built from internal config values (host:port)
 	default:
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", url) // #nosec G204 -- url built from internal config values (host:port)
 	}
 	return cmd.Start()
 }
