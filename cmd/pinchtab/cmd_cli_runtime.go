@@ -57,12 +57,17 @@ func resolveCLIBase(cfg *config.RuntimeConfig) string {
 }
 
 func resolveCLIToken(cfg *config.RuntimeConfig) string {
+	// PINCHTAB_SESSION takes precedence: use session auth
+	if sessionToken := os.Getenv("PINCHTAB_SESSION"); sessionToken != "" {
+		return sessionToken
+	}
 	token := cfg.Token
 	if envToken := os.Getenv("PINCHTAB_TOKEN"); envToken != "" {
 		token = envToken
 	}
 	return token
 }
+
 
 func resolveCLIAgentID() string {
 	if trimmed := strings.TrimSpace(cliAgentID); trimmed != "" {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pinchtab/pinchtab/internal/activity"
@@ -20,9 +21,7 @@ func DoGet(client *http.Client, base, token, path string, params url.Values) map
 		u += "?" + params.Encode()
 	}
 	req, _ := http.NewRequest("GET", u, nil)
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
+	setAuthHeader(req, token)
 	req.Header.Set(activity.HeaderAgentID, "cli")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -58,9 +57,7 @@ func DoGetRaw(client *http.Client, base, token, path string, params url.Values) 
 		u += "?" + params.Encode()
 	}
 	req, _ := http.NewRequest("GET", u, nil)
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
+	setAuthHeader(req, token)
 	req.Header.Set(activity.HeaderAgentID, "cli")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -80,9 +77,7 @@ func DoPost(client *http.Client, base, token, path string, body map[string]any) 
 	data, _ := json.Marshal(body)
 	req, _ := http.NewRequest("POST", base+path, bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
+	setAuthHeader(req, token)
 	req.Header.Set(activity.HeaderAgentID, "cli")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -127,6 +122,17 @@ func ResolveInstanceBase(orchBase, token, instanceID, bind string) string {
 		fatal("instance %q has no port assigned (is it still starting?)", instanceID)
 	}
 	return fmt.Sprintf("http://%s:%s", bind, inst.Port)
+}
+
+func setAuthHeader(req *http.Request, token string) {
+	if token == "" {
+		return
+	}
+	if strings.HasPrefix(token, "pts_") {
+		req.Header.Set("Authorization", "Session "+token)
+	} else {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 }
 
 func fatal(format string, args ...any) {

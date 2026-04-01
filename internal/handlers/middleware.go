@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pinchtab/pinchtab/internal/activity"
+	"github.com/pinchtab/pinchtab/internal/agentsession"
 	"github.com/pinchtab/pinchtab/internal/authn"
 	"github.com/pinchtab/pinchtab/internal/config"
 	"github.com/pinchtab/pinchtab/internal/httpx"
@@ -80,10 +82,10 @@ func SecurityHeadersMiddleware(cfg *config.RuntimeConfig, next http.Handler) htt
 }
 
 func AuthMiddleware(cfg *config.RuntimeConfig, next http.Handler) http.Handler {
-	return AuthMiddlewareWithSessions(cfg, nil, next)
+	return AuthMiddlewareWithSessions(cfg, nil, nil, next)
 }
 
-func AuthMiddlewareWithSessions(cfg *config.RuntimeConfig, sessions *authn.SessionManager, next http.Handler) http.Handler {
+func AuthMiddlewareWithSessions(cfg *config.RuntimeConfig, sessions *authn.SessionManager, agentSessions *agentsession.Store, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isPublicDashboardPath(r.URL.Path) || isPublicAuthPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
@@ -104,6 +106,20 @@ func AuthMiddlewareWithSessions(cfg *config.RuntimeConfig, sessions *authn.Sessi
 		}
 
 		switch creds.Method {
+		case authn.MethodSession:
+			if agentSessions == nil || !agentSessions.Enabled() {
+				httpx.ErrorCode(w, 401, "session_auth_unavailable", "agent session authentication is not enabled", false, nil)
+				return
+			}
+			sess, ok := agentSessions.Authenticate(creds.Value)
+			if !ok || sess == nil {
+				w.Header().Set("WWW-Authenticate", `Session realm="pinchtab", error="bad_session"`)
+				httpx.ErrorCode(w, 401, "bad_session", "invalid or expired agent session", false, nil)
+				return
+			}
+			// Inject agent identity into request headers for activity tracking
+			r.Header.Set(activity.HeaderAgentID, sess.AgentID)
+			r.Header.Set(activity.HeaderPTSessionID, sess.ID)
 		case authn.MethodHeader:
 			if subtle.ConstantTimeCompare([]byte(creds.Value), []byte(token)) != 1 {
 				authn.ClearSessionCookie(w, r, cfg != nil && cfg.TrustProxyHeaders, cookieSecureSetting(cfg))
@@ -173,6 +189,8 @@ func cookieAuthAllowed(r *http.Request) bool {
 			path == "/api/agents",
 			path == "/api/events",
 			path == "/api/config",
+			path == "/api/agent-sessions",
+			strings.HasPrefix(path, "/api/agent-sessions/"),
 			path == "/profiles",
 			path == "/instances",
 			path == "/instances/tabs",
@@ -191,6 +209,10 @@ func cookieAuthAllowed(r *http.Request) bool {
 	case http.MethodPost:
 		switch {
 		case path == "/api/auth/elevate":
+			return true
+		case path == "/api/agent-sessions":
+			return true
+		case strings.HasPrefix(path, "/api/agent-sessions/"):
 			return true
 		case strings.HasPrefix(path, "/api/agents/") && strings.HasSuffix(path, "/events"):
 			return true

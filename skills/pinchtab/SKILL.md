@@ -258,6 +258,8 @@ curl -X POST http://localhost:9868/action \
 
 If the server is exposed beyond localhost, require a token and use a dedicated automation profile. See [TRUST.md](./TRUST.md) and [config.md](../../docs/reference/config.md).
 
+**Agent sessions**: Instead of sharing the server token, use `PINCHTAB_SESSION=pts_...` for per-agent identity with revocable tokens. Create sessions via `POST /api/agent-sessions`. See [sessions reference](../../docs/reference/sessions.md).
+
 ## Essential Commands
 
 ### Server and targeting

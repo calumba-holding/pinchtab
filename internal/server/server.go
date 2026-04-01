@@ -6,12 +6,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/pinchtab/pinchtab/internal/activity"
+	"github.com/pinchtab/pinchtab/internal/agentsession"
 	"github.com/pinchtab/pinchtab/internal/authn"
 	"github.com/pinchtab/pinchtab/internal/bridge"
 	"github.com/pinchtab/pinchtab/internal/cli"
@@ -68,6 +70,16 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 	configAPI.SetSessionManager(sessions)
 	authAPI := dashboard.NewAuthAPI(cfg, sessions)
 
+	// Agent sessions
+	agentSessionStore := agentsession.NewStore(agentsession.Config{
+		Enabled:     cfg.Sessions.Agent.Enabled,
+		Mode:        cfg.Sessions.Agent.Mode,
+		IdleTimeout: cfg.Sessions.Agent.IdleTimeout,
+		MaxLifetime: cfg.Sessions.Agent.MaxLifetime,
+		PersistPath: filepath.Join(cfg.StateDir, "agent-sessions.json"),
+	})
+	agentSessionAPI := dashboard.NewAgentSessionAPI(agentSessionStore)
+
 	// Wire up instance events to SSE broadcast
 	orch.OnEvent(func(evt orchestrator.InstanceEvent) {
 		dash.BroadcastSystemEvent(dashboard.SystemEvent{
@@ -95,6 +107,7 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 	dash.RegisterHandlers(mux)
 	configAPI.RegisterHandlers(mux)
 	authAPI.RegisterHandlers(mux)
+	agentSessionAPI.RegisterHandlers(mux)
 	profMgr.RegisterHandlers(mux)
 	liveActivity := newDashboardActivityRecorder(actStore, dash)
 	activity.RegisterHandlers(mux, liveActivity)
@@ -215,7 +228,7 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 			liveActivity,
 			"server",
 			handlers.SecurityHeadersMiddleware(cfg,
-				handlers.LoggingMiddleware(handlers.RateLimitMiddleware(handlers.CorsMiddleware(cfg, handlers.AuthMiddlewareWithSessions(cfg, sessions, mux)))),
+				handlers.LoggingMiddleware(handlers.RateLimitMiddleware(handlers.CorsMiddleware(cfg, handlers.AuthMiddlewareWithSessions(cfg, sessions, agentSessionStore, mux)))),
 			),
 		),
 	)

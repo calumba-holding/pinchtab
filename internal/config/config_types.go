@@ -100,6 +100,14 @@ type RuntimeConfig struct {
 
 type SessionsRuntimeConfig struct {
 	Dashboard DashboardSessionRuntimeConfig `json:"dashboard,omitempty"`
+	Agent     AgentSessionRuntimeConfig     `json:"agent,omitempty"`
+}
+
+type AgentSessionRuntimeConfig struct {
+	Enabled     bool          `json:"enabled,omitempty"`
+	Mode        string        `json:"mode,omitempty"`
+	IdleTimeout time.Duration `json:"idleTimeout,omitempty"`
+	MaxLifetime time.Duration `json:"maxLifetime,omitempty"`
 }
 
 type DashboardSessionRuntimeConfig struct {
@@ -190,6 +198,14 @@ type ServerConfig struct {
 
 type SessionsFileConfig struct {
 	Dashboard DashboardSessionFileConfig `json:"dashboard,omitempty"`
+	Agent     AgentSessionFileConfig     `json:"agent,omitempty"`
+}
+
+type AgentSessionFileConfig struct {
+	Enabled        *bool  `json:"enabled,omitempty"`
+	Mode           string `json:"mode,omitempty"`
+	IdleTimeoutSec *int   `json:"idleTimeoutSec,omitempty"`
+	MaxLifetimeSec *int   `json:"maxLifetimeSec,omitempty"`
 }
 
 type DashboardSessionFileConfig struct {

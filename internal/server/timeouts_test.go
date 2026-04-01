@@ -41,7 +41,7 @@ func TestDashboardHandlerChainAppliesRateLimit(t *testing.T) {
 		activity.Middleware(
 			nil,
 			"server",
-			handlers.LoggingMiddleware(handlers.RateLimitMiddleware(handlers.CorsMiddleware(cfg, handlers.AuthMiddlewareWithSessions(cfg, sessions, mux)))),
+			handlers.LoggingMiddleware(handlers.RateLimitMiddleware(handlers.CorsMiddleware(cfg, handlers.AuthMiddlewareWithSessions(cfg, sessions, nil, mux)))),
 		),
 	)
 

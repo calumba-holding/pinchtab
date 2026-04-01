@@ -387,6 +387,21 @@ Activity attribution and source behavior:
 
 Scheduler routes are only present when `scheduler.enabled` is true.
 
+## Agent Sessions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/agent-sessions` | Create a new agent session (body: `{agentId, label?}`) |
+| `GET` | `/api/agent-sessions` | List all agent sessions |
+| `GET` | `/api/agent-sessions/me` | Get current session (requires `Authorization: Session` auth) |
+| `GET` | `/api/agent-sessions/{id}` | Get session details by ID |
+| `POST` | `/api/agent-sessions/{id}/rotate` | Rotate session token |
+| `POST` | `/api/agent-sessions/{id}/revoke` | Revoke session |
+
+All endpoints except `/me` require dashboard auth (bearer or cookie). The `/me` endpoint requires session auth.
+
+Create and rotate return `sessionToken` — the plaintext token shown only once.
+
 ## Feature Gates
 
 Some endpoints are intentionally disabled unless the matching config allows them:

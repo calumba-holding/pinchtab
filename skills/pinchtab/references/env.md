@@ -33,4 +33,12 @@ For most agent tasks, the only variable you need is:
 PINCHTAB_TOKEN=...
 ```
 
+Or use agent sessions for per-agent identity and revocability:
+
+```bash
+PINCHTAB_SESSION=pts_...
+```
+
+When `PINCHTAB_SESSION` is set, the CLI uses `Authorization: Session <token>` instead of bearer auth. The session maps to a specific agentId server-side and can be revoked independently.
+
 Everything else should be handled through config, profiles, instances, and the `--server` flag.

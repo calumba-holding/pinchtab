@@ -275,3 +275,14 @@ For a secure local setup:
 ```
 
 If you intentionally expose PinchTab beyond localhost, treat the token as mandatory and keep the sensitive endpoint families disabled unless you have a specific reason to enable them. For anything more exposed than a single-machine local setup, assume you are operating an advanced deployment and review each security control explicitly.
+
+## Agent Sessions
+
+For automated agents, use **agent sessions** instead of sharing the server bearer token. Each agent gets a dedicated session token (`PINCHTAB_SESSION`) that:
+
+- Maps to a specific `agentId` for activity tracking
+- Can be individually revoked without affecting other agents
+- Has configurable idle timeout and max lifetime
+- Never exposes the server bearer token to agents
+
+See [Reference: Agent Sessions](../reference/sessions.md) for configuration and API details.

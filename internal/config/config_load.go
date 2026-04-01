@@ -98,8 +98,14 @@ func Load() *RuntimeConfig {
 			},
 		},
 
-		// Dashboard session defaults
+		// Session defaults
 		Sessions: SessionsRuntimeConfig{
+			Agent: AgentSessionRuntimeConfig{
+				Enabled:     true,
+				Mode:        "preferred",
+				IdleTimeout: 30 * time.Minute,
+				MaxLifetime: 24 * time.Hour,
+			},
 			Dashboard: DashboardSessionRuntimeConfig{
 				Persist:                       true,
 				IdleTimeout:                   7 * 24 * time.Hour,
@@ -283,6 +289,20 @@ func applyFileConfig(cfg *RuntimeConfig, fc *FileConfig) {
 	}
 	if fc.Sessions.Dashboard.RequireElevation != nil {
 		cfg.Sessions.Dashboard.RequireElevation = *fc.Sessions.Dashboard.RequireElevation
+	}
+
+	// Agent sessions
+	if fc.Sessions.Agent.Enabled != nil {
+		cfg.Sessions.Agent.Enabled = *fc.Sessions.Agent.Enabled
+	}
+	if fc.Sessions.Agent.Mode != "" {
+		cfg.Sessions.Agent.Mode = fc.Sessions.Agent.Mode
+	}
+	if fc.Sessions.Agent.IdleTimeoutSec != nil && *fc.Sessions.Agent.IdleTimeoutSec > 0 {
+		cfg.Sessions.Agent.IdleTimeout = time.Duration(*fc.Sessions.Agent.IdleTimeoutSec) * time.Second
+	}
+	if fc.Sessions.Agent.MaxLifetimeSec != nil && *fc.Sessions.Agent.MaxLifetimeSec > 0 {
+		cfg.Sessions.Agent.MaxLifetime = time.Duration(*fc.Sessions.Agent.MaxLifetimeSec) * time.Second
 	}
 
 	// Browser
