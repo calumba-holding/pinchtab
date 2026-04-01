@@ -423,7 +423,7 @@ func (d *Dashboard) handleAgentSSE(w http.ResponseWriter, r *http.Request) {
 func (d *Dashboard) handleSSE(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		httpx.Problem(w, http.StatusInternalServerError, "streaming_not_supported", "streaming not supported", false, nil)
 		return
 	}
 
@@ -431,7 +431,7 @@ func (d *Dashboard) handleSSE(w http.ResponseWriter, r *http.Request) {
 	// deadline for this response so the stream is not terminated after
 	// http.Server.WriteTimeout elapses.
 	if err := http.NewResponseController(w).SetWriteDeadline(time.Time{}); err != nil {
-		http.Error(w, "streaming deadline unsupported", http.StatusInternalServerError)
+		httpx.Problem(w, http.StatusInternalServerError, "streaming_deadline_unsupported", "streaming deadline unsupported", false, nil)
 		return
 	}
 

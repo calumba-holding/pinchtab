@@ -31,6 +31,76 @@ func TestNewDashboard(t *testing.T) {
 	}
 }
 
+type noFlusherDashboardResponseWriter struct {
+	header http.Header
+	body   bytes.Buffer
+	status int
+}
+
+func (w *noFlusherDashboardResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+
+func (w *noFlusherDashboardResponseWriter) Write(b []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.body.Write(b)
+}
+
+func (w *noFlusherDashboardResponseWriter) WriteHeader(statusCode int) {
+	w.status = statusCode
+}
+
+func TestDashboardHandleSSE_StreamingNotSupportedReturnsProblem(t *testing.T) {
+	d := NewDashboard(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/events", nil)
+	w := &noFlusherDashboardResponseWriter{}
+
+	d.handleSSE(w, req)
+
+	if w.status != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", w.status, http.StatusInternalServerError)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/problem+json" {
+		t.Fatalf("content-type = %q, want application/problem+json", ct)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(w.body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode problem payload: %v", err)
+	}
+	if payload["code"] != "streaming_not_supported" {
+		t.Fatalf("code = %v, want streaming_not_supported", payload["code"])
+	}
+}
+
+func TestDashboardHandleSSE_StreamingDeadlineUnsupportedReturnsProblem(t *testing.T) {
+	d := NewDashboard(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/events", nil)
+	w := httptest.NewRecorder()
+
+	d.handleSSE(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/problem+json" {
+		t.Fatalf("content-type = %q, want application/problem+json", ct)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode problem payload: %v", err)
+	}
+	if payload["code"] != "streaming_deadline_unsupported" {
+		t.Fatalf("code = %v, want streaming_deadline_unsupported", payload["code"])
+	}
+}
+
 func TestDashboardBroadcastSystemEvent(t *testing.T) {
 	d := NewDashboard(nil)
 

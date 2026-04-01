@@ -400,3 +400,20 @@ These gates are not ordinary feature toggles. Enabling them is a documented, non
 - clipboard routes -> `security.allowClipboard`
 - attach routes -> `security.attach`
 - screencast routes -> `security.allowScreencast`
+
+## Error Response Format
+
+PinchTab currently uses two JSON error shapes during a transition period:
+
+- Legacy JSON errors: `application/json` with fields like `error` and `code`
+- Problem Details errors: `application/problem+json` (RFC 7807 style)
+
+Problem Details is currently used for selected precondition and capability failures, including:
+
+- websocket proxy pre-upgrade backend/hijack failures
+- network stream unsupported streaming capability
+- dashboard SSE unsupported streaming capability or deadline control
+- instance logs SSE unsupported streaming capability or deadline control
+- screencast tab-not-found precondition failure
+
+Additional endpoints may be migrated over time. Clients should tolerate both error content types and branch on `Content-Type` when parsing failures.
