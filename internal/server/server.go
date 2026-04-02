@@ -218,7 +218,7 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 	}
 
 	mux.HandleFunc("GET /health", configAPI.HandleHealth)
-	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/metrics", func(w http.ResponseWriter, r *http.Request) {
 		httpx.JSON(w, 200, map[string]any{"metrics": handlers.SnapshotMetrics()})
 	})
 

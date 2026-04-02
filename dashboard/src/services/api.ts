@@ -315,7 +315,9 @@ export async function fetchAgent(
 }
 
 export async function fetchServerMetrics(): Promise<MonitoringServerMetrics> {
-  const res = await request<{ metrics: MonitoringServerMetrics }>("/metrics");
+  const res = await request<{ metrics: MonitoringServerMetrics }>(
+    "/api/metrics",
+  );
   return res.metrics;
 }
 

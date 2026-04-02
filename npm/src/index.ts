@@ -141,14 +141,14 @@ export class Pinchtab {
    * Lock a tab
    */
   async lock(params: TabLockParams): Promise<void> {
-    await this.request('/tab/lock', params);
+    await this.request('/lock', params);
   }
 
   /**
    * Unlock a tab
    */
   async unlock(params: TabUnlockParams): Promise<void> {
-    await this.request('/tab/unlock', params);
+    await this.request('/unlock', params);
   }
 
   /**

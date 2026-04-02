@@ -325,11 +325,11 @@ These are equivalent to using `?tabId=TARGET_ID` on top-level endpoints but foll
 
 ```bash
 # Lock a tab (default 30s timeout, max 5min)
-curl -X POST /tab/lock -H 'Content-Type: application/json' \
+curl -X POST /lock -H 'Content-Type: application/json' \
   -d '{"tabId": "TARGET_ID", "owner": "agent-1", "timeoutSec": 60}'
 
 # Unlock
-curl -X POST /tab/unlock -H 'Content-Type: application/json' \
+curl -X POST /unlock -H 'Content-Type: application/json' \
   -d '{"tabId": "TARGET_ID", "owner": "agent-1"}'
 ```
 

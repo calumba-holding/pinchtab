@@ -212,7 +212,7 @@ curl -X POST http://localhost:9867/tabs/<tabId>/unlock \
   -d '{"owner":"my-agent"}'
 ```
 
-There are also active-tab forms at `POST /tab/lock` and `POST /tab/unlock`.
+There are also active-tab forms at `POST /lock` and `POST /unlock`.
 
 ## Important Limits
 

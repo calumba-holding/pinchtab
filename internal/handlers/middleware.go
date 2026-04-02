@@ -189,6 +189,7 @@ func cookieAuthAllowed(r *http.Request) bool {
 		switch {
 		case path == "/health",
 			path == "/metrics",
+			path == "/api/metrics",
 			path == "/api/activity",
 			path == "/api/agents",
 			path == "/api/events",

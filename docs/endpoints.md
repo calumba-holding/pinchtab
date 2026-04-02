@@ -10,6 +10,7 @@ POST /ensure-chrome
 GET  /openapi.json
 GET  /help          (alias for /openapi.json)
 GET  /metrics
+GET  /api/metrics
 POST /shutdown
 GET  /api/events
 ```
@@ -18,7 +19,8 @@ Notes:
 
 - in bridge mode, `/health` reports bridge health and tab count
 - in full server mode, `/health` reports dashboard health, auth state, and instance count
-- `/metrics` in full server mode is a server metrics snapshot, not the bridge memory view
+- `/metrics` proxies to the bridge instance (per-instance runtime metrics)
+- `/api/metrics` in full server mode is a server-level metrics snapshot (aggregated)
 
 ## Dashboard Auth And Config
 
@@ -73,8 +75,8 @@ Important behavior:
 ## Tab Locking
 
 ```text
-POST /tab/lock
-POST /tab/unlock
+POST /lock
+POST /unlock
 POST /tabs/{id}/lock
 POST /tabs/{id}/unlock
 ```

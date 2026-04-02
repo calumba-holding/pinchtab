@@ -51,7 +51,7 @@ func shouldBroadcastDashboardActivity(evt activity.Event) bool {
 		return true
 	}
 	switch evt.Path {
-	case "/health", "/tabs", "/metrics":
+	case "/health", "/tabs", "/metrics", "/api/metrics":
 		return false
 	default:
 		return true

@@ -66,12 +66,15 @@ var Core = []Endpoint{
 
 	// Tab management
 	{"POST", "/tab", "Open or switch tab", CapNone, false},
-	{"POST", "/tab/lock", "Lock tab", CapNone, true},
-	{"POST", "/tab/unlock", "Unlock tab", CapNone, true},
+	{"POST", "/lock", "Lock tab", CapNone, true},
+	{"POST", "/unlock", "Unlock tab", CapNone, true},
 
 	// Cookies
 	{"GET", "/cookies", "Get cookies", CapNone, true},
 	{"POST", "/cookies", "Set cookies", CapNone, true},
+
+	// Metrics
+	{"GET", "/metrics", "Runtime metrics", CapNone, true},
 
 	// Network
 	{"GET", "/network", "Network log", CapNone, true},
