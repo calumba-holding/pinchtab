@@ -115,13 +115,20 @@ func (h *Handlers) HandleNavigate(w http.ResponseWriter, r *http.Request) {
 		h.recordEngine(r, "lite")
 		result, err := h.Router.Lite().Navigate(r.Context(), req.URL)
 		if err != nil {
-			httpx.Error(w, 502, fmt.Errorf("lite navigate: %w", err))
+			if engine.IsIDPIBlocked(err) {
+				httpx.Error(w, http.StatusForbidden, err)
+			} else {
+				httpx.Error(w, 502, fmt.Errorf("lite navigate: %w", err))
+			}
 			return
 		}
 		w.Header().Set("X-Engine", "lite")
 		httpx.JSON(w, 200, map[string]any{"tabId": result.TabID, "url": result.URL, "title": result.Title})
 		return
 	}
+
+	h.recordEngine(r, "chrome")
+	w.Header().Set("X-Engine", "chrome")
 
 	// Ensure Chrome is initialized
 

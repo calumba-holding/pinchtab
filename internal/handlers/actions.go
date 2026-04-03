@@ -329,14 +329,19 @@ func (h *Handlers) HandleAction(w http.ResponseWriter, r *http.Request) {
 			httpx.ErrorCode(w, http.StatusNotImplemented, "not_supported", actionErr.Error(), false, nil)
 			return
 		}
+		if engine.IsIDPIBlocked(actionErr) {
+			httpx.ErrorCode(w, http.StatusForbidden, "idpi_blocked", actionErr.Error(), false, nil)
+			return
+		}
 		httpx.ErrorCode(w, 500, "action_failed", fmt.Sprintf("action %s: %v", req.Kind, actionErr), true, nil)
 		return
 	}
 
-	if engineName == "lite" {
-		w.Header().Set("X-Engine", "lite")
-		h.recordEngine(r, "lite")
+	if engineName == "" {
+		engineName = "chrome"
 	}
+	w.Header().Set("X-Engine", engineName)
+	h.recordEngine(r, engineName)
 	resp := map[string]any{"success": true, "result": result}
 	if recoveryResult != nil {
 		resp["recovery"] = recoveryResult
