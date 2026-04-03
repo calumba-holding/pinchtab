@@ -65,9 +65,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab download .gz file (gzip fallback)"
 
-# The fixtures domain is allowlisted in security.downloadAllowedDomains for e2e tests.
-# This tests the full fallback path: Chrome navigation aborts on .gz, we fall back
-# to Go HTTP fetch with cookie forwarding, decompress gzip, return plain XML.
+# fixtures domain allowlisted in e2e config for this test
 GZ_URL="${FIXTURES_URL:-http://fixtures:80}/sitemap.xml.gz"
 
 pt_ok download "$GZ_URL" -o /tmp/e2e-download-gz.xml

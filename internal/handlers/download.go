@@ -57,8 +57,7 @@ func (g *downloadURLGuard) Validate(rawURL string) error {
 		return fmt.Errorf("internal or blocked host")
 	}
 
-	// Check domain allowlist first. If a domain is explicitly allowed,
-	// skip the IP validation (allows internal/docker network hosts).
+	// Allowlisted domains bypass IP validation (e.g. internal docker hosts).
 	if len(g.allowedDomains) > 0 {
 		result := idpi.CheckDomain(rawURL, config.IDPIConfig{
 			Enabled:        true,
@@ -68,11 +67,9 @@ func (g *downloadURLGuard) Validate(rawURL string) error {
 		if result.Blocked {
 			return fmt.Errorf("domain not allowed by security.downloadAllowedDomains")
 		}
-		// Domain is explicitly allowed, skip IP validation
 		return nil
 	}
 
-	// No allowlist configured — enforce public IP requirement
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 
@@ -559,15 +556,9 @@ func (h *Handlers) writeDownloadResponse(w http.ResponseWriter, body []byte, mim
 	})
 }
 
-// fetchDirectWithCookies performs a Go HTTP fetch using cookies extracted from
-// the browser session. Used as a fallback when Chrome's navigation aborts
-// (e.g. for .gz files or other binary downloads).
+// fetchDirectWithCookies performs a Go HTTP fetch with browser cookies.
+// Fallback for when Chrome navigation aborts (e.g. .gz files).
 func (h *Handlers) fetchDirectWithCookies(ctx context.Context, browserCtx context.Context, dlURL string, maxBytes int) (body []byte, contentType string, statusCode int, err error) {
-	// Pull cookies from the browser for this URL via CDP.
-	// Note: CDP's GetCookies with a URL already returns domain-scoped cookies.
-	// We forward all cookies including HttpOnly ones - this is intentional for
-	// download functionality (browsers wouldn't expose HttpOnly to JS, but we're
-	// acting as the browser itself, not as JS running in the page).
 	var browserCookies []*network.Cookie
 	if fetchErr := chromedp.Run(browserCtx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
@@ -588,8 +579,6 @@ func (h *Handlers) fetchDirectWithCookies(ctx context.Context, browserCtx contex
 	}
 	req.Header.Set("Accept", "*/*")
 
-	// Forward browser cookies. CDP already scopes cookies by URL/domain,
-	// so we just add them directly without additional filtering.
 	for _, c := range browserCookies {
 		req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
 	}
@@ -616,8 +605,6 @@ func (h *Handlers) fetchDirectWithCookies(ctx context.Context, browserCtx contex
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// Check Content-Length early to avoid reading oversized responses.
-	// This provides a fast-fail for obviously too-large downloads.
 	if cl := resp.Header.Get("Content-Length"); cl != "" {
 		if contentLength, parseErr := strconv.ParseInt(cl, 10, 64); parseErr == nil {
 			if contentLength > int64(maxBytes) {
@@ -630,8 +617,6 @@ func (h *Handlers) fetchDirectWithCookies(ctx context.Context, browserCtx contex
 	isGzip := isGzipContent(resp.Header.Get("Content-Type"), dlURL) &&
 		!strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip")
 
-	// Decompress gzip if the content itself is gzip-encoded (e.g. .gz files)
-	// but NOT if the transport encoding is gzip (Go handles that automatically).
 	if isGzip {
 		gz, gzErr := gzip.NewReader(resp.Body)
 		if gzErr != nil {
@@ -641,10 +626,7 @@ func (h *Handlers) fetchDirectWithCookies(ctx context.Context, browserCtx contex
 		reader = gz
 	}
 
-	// LimitReader protects against gzip bombs: a small compressed payload could
-	// decompress to gigabytes. By limiting the *decompressed* stream (not the
-	// compressed input), we bound memory usage regardless of compression ratio.
-	// Default maxBytes is 20MB, capped at 100MB via config.
+	// LimitReader on decompressed stream protects against gzip bombs.
 	data, err := io.ReadAll(io.LimitReader(reader, int64(maxBytes)+1))
 	if err != nil {
 		return nil, "", 0, err
