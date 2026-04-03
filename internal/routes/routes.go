@@ -41,9 +41,8 @@ func (e Endpoint) TabRoute() string {
 	return e.Method + " /tabs/{id}" + e.Path
 }
 
-// Core is the canonical list of API endpoints. Every proxied shorthand
-// route and every bridge handler should correspond to an entry here.
-var Core = []Endpoint{
+// coreEndpoints is the canonical list of API endpoints.
+var coreEndpoints = []Endpoint{
 	// Navigation
 	{"POST", "/navigate", "Navigate to URL", CapNone, true},
 	{"POST", "/back", "Go back", CapNone, true},
@@ -118,11 +117,18 @@ var Core = []Endpoint{
 	{"GET", "/screencast/tabs", "List tabs available for screencast", CapScreencast, false},
 }
 
+// Core returns a copy of the canonical endpoint list.
+func Core() []Endpoint {
+	out := make([]Endpoint, len(coreEndpoints))
+	copy(out, coreEndpoints)
+	return out
+}
+
 // ShorthandRoutes returns all non-capability-gated shorthand routes
 // as "METHOD /path" strings, suitable for mux registration.
 func ShorthandRoutes() []string {
 	var routes []string
-	for _, ep := range Core {
+	for _, ep := range coreEndpoints {
 		if ep.Capability == CapNone {
 			routes = append(routes, ep.Route())
 		}
@@ -133,7 +139,7 @@ func ShorthandRoutes() []string {
 // CapabilityEndpoints returns endpoints grouped by their capability gate.
 func CapabilityEndpoints() map[Capability][]Endpoint {
 	m := make(map[Capability][]Endpoint)
-	for _, ep := range Core {
+	for _, ep := range coreEndpoints {
 		if ep.Capability != CapNone {
 			m[ep.Capability] = append(m[ep.Capability], ep)
 		}
@@ -145,7 +151,7 @@ func CapabilityEndpoints() map[Capability][]Endpoint {
 // endpoints that are NOT capability-gated (those need separate handling).
 func TabScopedRoutes() []string {
 	var routes []string
-	for _, ep := range Core {
+	for _, ep := range coreEndpoints {
 		if ep.TabScoped && ep.Capability == CapNone {
 			routes = append(routes, ep.TabRoute())
 		}
@@ -156,7 +162,7 @@ func TabScopedRoutes() []string {
 // TabScopedCapabilityRoutes returns tab-scoped capability-gated endpoints.
 func TabScopedCapabilityRoutes() map[Capability][]Endpoint {
 	m := make(map[Capability][]Endpoint)
-	for _, ep := range Core {
+	for _, ep := range coreEndpoints {
 		if ep.TabScoped && ep.Capability != CapNone {
 			m[ep.Capability] = append(m[ep.Capability], ep)
 		}

@@ -48,7 +48,7 @@ func capabilitySetting(cap routes.Capability) (feature, setting, code string) {
 // routes (evaluate, download, upload, screencast, macro) using the
 // orchestrator's security settings.
 //
-// Routes are sourced from the shared routes.Core catalogue.
+// Routes are sourced from the shared routes.Core() catalogue.
 func RegisterShorthandRoutes(mux *http.ServeMux, orch *orchestrator.Orchestrator, handler http.HandlerFunc) {
 	for _, route := range routes.ShorthandRoutes() {
 		mux.HandleFunc(route, handler)

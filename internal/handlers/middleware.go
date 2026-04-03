@@ -215,10 +215,6 @@ func cookieAuthAllowed(r *http.Request) bool {
 		switch {
 		case path == "/api/auth/elevate":
 			return true
-		case path == "/api/sessions":
-			return true
-		case strings.HasPrefix(path, "/api/sessions/"):
-			return true
 		case strings.HasPrefix(path, "/api/agents/") && strings.HasSuffix(path, "/events"):
 			return true
 		case path == "/action":

@@ -7,7 +7,7 @@ import (
 
 func TestNoDuplicateRoutes(t *testing.T) {
 	seen := make(map[string]bool)
-	for _, ep := range Core {
+	for _, ep := range Core() {
 		key := ep.Route()
 		if seen[key] {
 			t.Errorf("duplicate route: %s", key)
@@ -18,7 +18,7 @@ func TestNoDuplicateRoutes(t *testing.T) {
 
 func TestShorthandRoutesExcludeCapabilityGated(t *testing.T) {
 	for _, r := range ShorthandRoutes() {
-		for _, ep := range Core {
+		for _, ep := range Core() {
 			if ep.Route() == r && ep.Capability != CapNone {
 				t.Errorf("ShorthandRoutes() includes capability-gated route: %s", r)
 			}
@@ -59,7 +59,7 @@ func TestCapabilityEndpointsGrouping(t *testing.T) {
 }
 
 func TestAllEndpointsHaveMethodAndPath(t *testing.T) {
-	for _, ep := range Core {
+	for _, ep := range Core() {
 		if ep.Method == "" {
 			t.Errorf("endpoint with empty method: %+v", ep)
 		}

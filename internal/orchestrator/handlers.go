@@ -61,7 +61,7 @@ func (o *Orchestrator) registerHandlers(mux *http.ServeMux, skipLaunch bool) {
 	mux.HandleFunc("POST /tabs/{id}/close", o.handleTabClose)
 
 	// Tab operations - generic proxy (all route to the appropriate instance).
-	// Sourced from routes.Core catalogue to stay in sync with bridge and strategy.
+	// Sourced from routes.Core() catalogue to stay in sync with bridge and strategy.
 	for _, route := range routes.TabScopedRoutes() {
 		mux.HandleFunc(route, o.proxyTabRequest)
 	}
