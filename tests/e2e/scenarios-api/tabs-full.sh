@@ -56,11 +56,11 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "tab-specific download: GET /tabs/{id}/download"
 
-pt_post /navigate -d '{"url":"https://httpbin.org/robots.txt"}'
+pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/index.html\"}"
 TAB_ID2=$(get_tab_id)
 show_tab "created" "$TAB_ID2"
 
-pt_get "/tabs/${TAB_ID2}/download?url=https://httpbin.org/json"
+pt_get "/tabs/${TAB_ID2}/download?url=${FIXTURES_URL}/sample.txt"
 assert_ok "download from tab"
 
 end_test
@@ -86,20 +86,20 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "tab-specific download: locked tab rejects wrong owner"
 
-pt_post /navigate -d '{"url":"https://httpbin.org/robots.txt"}'
+pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/index.html\"}"
 LOCKED_DOWNLOAD_TAB_ID=$(get_tab_id)
 show_tab "created" "$LOCKED_DOWNLOAD_TAB_ID"
 
 pt_post "/tabs/${LOCKED_DOWNLOAD_TAB_ID}/lock" -d '{"owner":"agent-a"}'
 assert_ok "lock download tab"
 
-pinchtab GET "/tabs/${LOCKED_DOWNLOAD_TAB_ID}/download?url=https://httpbin.org/json" \
+pinchtab GET "/tabs/${LOCKED_DOWNLOAD_TAB_ID}/download?url=${FIXTURES_URL}/sample.txt" \
   -H "X-Owner: intruder"
 _echo_truncated
 assert_http_status 423 "wrong owner blocked on download"
 assert_contains "$RESULT" "tab_locked" "locked tab error returned for download"
 
-pinchtab GET "/tabs/${LOCKED_DOWNLOAD_TAB_ID}/download?url=https://httpbin.org/json" \
+pinchtab GET "/tabs/${LOCKED_DOWNLOAD_TAB_ID}/download?url=${FIXTURES_URL}/sample.txt" \
   -H "X-Owner: agent-a"
 _echo_truncated
 assert_ok "correct owner can download from locked tab"

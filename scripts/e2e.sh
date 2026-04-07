@@ -39,6 +39,16 @@ compose_down() {
   $COMPOSE -f "${compose_file}" down -v 2>/dev/null || true
 }
 
+# Always rebuild the fixtures nginx image up front so changes to
+# tests/e2e/nginx/{Dockerfile,default.conf} are guaranteed to land in the
+# container, regardless of whether `compose run --build` would otherwise
+# rebuild this transitive dependency. This eliminates an entire class of
+# "the new fixture config didn't get picked up" failure modes.
+build_support_images() {
+  local compose_file="$1"
+  $COMPOSE -f "${compose_file}" build fixtures
+}
+
 dump_compose_failure() {
   local compose_file="$1"
   shift
@@ -121,6 +131,7 @@ run_api_fast() {
   show_filter_status
   echo ""
   prepare_suite_results "${summary_file}" "${report_file}" "${progress_file}" "${log_prefix}"
+  build_support_images "${compose_file}"
   set +e
   if [ -n "${E2E_FILTER}" ]; then
     $COMPOSE -f "${compose_file}" run --build --rm runner-api /bin/bash /e2e/run.sh api "filter=${E2E_FILTER}"
@@ -147,6 +158,7 @@ run_full_api() {
   show_filter_status
   echo ""
   prepare_suite_results "${summary_file}" "${report_file}" "${progress_file}" "${log_prefix}"
+  build_support_images "${compose_file}"
   set +e
   E2E_SCENARIO_FILTER="${E2E_FILTER}" $COMPOSE -f "${compose_file}" up --build --abort-on-container-exit --exit-code-from runner-api runner-api
   local api_exit=$?
@@ -169,6 +181,7 @@ run_cli_fast() {
   show_filter_status
   echo ""
   prepare_suite_results "${summary_file}" "${report_file}" "${progress_file}" "${log_prefix}"
+  build_support_images "${compose_file}"
   set +e
   if [ -n "${E2E_FILTER}" ]; then
     $COMPOSE -f "${compose_file}" run --build --rm runner-cli /bin/bash /e2e/run.sh cli "filter=${E2E_FILTER}"
@@ -195,6 +208,7 @@ run_full_cli() {
   show_filter_status
   echo ""
   prepare_suite_results "${summary_file}" "${report_file}" "${progress_file}" "${log_prefix}"
+  build_support_images "${compose_file}"
   set +e
   E2E_SCENARIO_FILTER="${E2E_FILTER}" $COMPOSE -f "${compose_file}" up --build --abort-on-container-exit --exit-code-from runner-cli runner-cli
   local cli_exit=$?

@@ -99,12 +99,14 @@ end_test
 # In Docker, fixtures resolves to internal IP, so we test with public URLs.
 
 build_download_redirect_url() {
-  local target_url="$1"
-  local encoded_target
-  local attacker_url
-
-  encoded_target=$(jq -rn --arg u "$target_url" '$u|@uri')
-  attacker_url="https://httpbin.org/redirect-to?url=${encoded_target}"
+  # The target arg is intentionally ignored: the SSRF test only needs *some*
+  # redirect to *some* private/internal target. The fixtures nginx exposes a
+  # dedicated /redirect-to-internal endpoint with the target hardcoded to
+  # http://127.0.0.1:9999/health, which sidesteps stock nginx's inability to
+  # URL-decode query args (and the resulting Location-header relative-path
+  # bug that breaks parameterized /redirect-to?url= for encoded targets).
+  local _ignored_target="$1"
+  local attacker_url="${FIXTURES_URL}/redirect-to-internal"
   jq -rn --arg u "$attacker_url" '$u|@uri'
 }
 

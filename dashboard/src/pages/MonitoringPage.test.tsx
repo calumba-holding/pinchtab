@@ -77,9 +77,7 @@ describe("MonitoringPage", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("heading", { name: "beta" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "beta" })).toBeInTheDocument();
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Open Profile" }));

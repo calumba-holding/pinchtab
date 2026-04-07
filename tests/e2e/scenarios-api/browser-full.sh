@@ -68,22 +68,22 @@ end_test
 
 start_test "redirects: follow single redirect"
 
-pt_post /navigate -d '{"url":"https://httpbin.org/redirect/1"}'
+pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/redirect/1\"}"
 assert_ok "single redirect followed"
 
 pt_get /snapshot
-assert_json_contains "$RESULT" ".url" "httpbin.org/get" "final URL is /get (redirect successful)"
+assert_json_contains "$RESULT" ".url" "fixtures/get" "final URL is /get (redirect successful)"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "redirects: follow multiple redirects"
 
-pt_post /navigate -d '{"url":"https://httpbin.org/redirect/5"}'
+pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/redirect/5\"}"
 assert_ok "five redirects followed"
 
 pt_get /snapshot
-assert_json_contains "$RESULT" ".url" "httpbin.org/get" "multiple redirects followed to destination"
+assert_json_contains "$RESULT" ".url" "fixtures/get" "multiple redirects followed to destination"
 
 end_test
 

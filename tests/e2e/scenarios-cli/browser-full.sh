@@ -112,18 +112,18 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "redirects: follow single redirect"
 
-pt_ok nav "https://httpbin.org/redirect/1"
+pt_ok nav "${FIXTURES_URL}/redirect/1"
 pt_ok snap
-assert_json_field_contains ".url" "httpbin.org/get" "landed on /get after redirect"
+assert_json_field_contains ".url" "fixtures/get" "landed on /get after redirect"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "redirects: follow multiple redirects"
 
-pt_ok nav "https://httpbin.org/redirect/3"
+pt_ok nav "${FIXTURES_URL}/redirect/3"
 pt_ok snap
-assert_json_field_contains ".url" "httpbin.org/get" "multiple redirects followed to /get"
+assert_json_field_contains ".url" "fixtures/get" "multiple redirects followed to /get"
 
 end_test
 

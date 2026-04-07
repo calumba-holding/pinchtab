@@ -73,7 +73,9 @@ function clickSidebarProfile(name: string) {
 }
 
 function getDetailPanel() {
-  return document.querySelector(".dashboard-panel .min-w-0.flex-1") as HTMLElement;
+  return document.querySelector(
+    ".dashboard-panel .min-w-0.flex-1",
+  ) as HTMLElement;
 }
 
 describe("ProfilesPage", () => {
@@ -95,7 +97,9 @@ describe("ProfilesPage", () => {
       ).toBeInTheDocument();
     });
 
-    const sidebar = document.querySelector(".bg-bg-surface\\/50") as HTMLElement;
+    const sidebar = document.querySelector(
+      ".bg-bg-surface\\/50",
+    ) as HTMLElement;
     const sidebarButtons = within(sidebar).getAllByRole("button");
     const profileButtons = sidebarButtons.filter((b) =>
       b.classList.contains("border-b"),

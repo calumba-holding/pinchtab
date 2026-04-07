@@ -294,7 +294,7 @@ sleep 2
 idpi_request GET "$E2E_SERVER" "/tabs/${TAB_ID}/text" "" "X-IDPI-Warning"
 assert_ok "text allowed after domain pivot in warn mode"
 assert_header_present "X-IDPI-Warning present after domain pivot"
-assert_json_contains "$RESULT" ".url" "example.com" "warn mode response reflects pivoted URL"
+assert_json_contains "$RESULT" ".url" "pivot-target" "warn mode response reflects pivoted URL"
 idpi_cleanup "$E2E_SERVER" "$TAB_ID"
 end_test
 
