@@ -133,9 +133,9 @@ func (s *Strategy) SetRuntimeConfig(cfg *config.RuntimeConfig) {
 		s.config.StableAfter = cfg.RestartStableAfter
 	}
 	if cfg.HeadlessSet {
-		s.config.Headless = cfg.Headless                                                  
-		s.config.HeadlessSet = true                                                     
-	} 
+		s.config.Headless = cfg.Headless
+		s.config.HeadlessSet = true
+	}
 }
 
 // SetOrchestrator injects the orchestrator after construction.
