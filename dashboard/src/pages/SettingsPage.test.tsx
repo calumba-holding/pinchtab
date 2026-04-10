@@ -77,7 +77,7 @@ describe("SettingsPage", () => {
 
     expect(
       screen.getByText(
-        "Dashboard edits are written back to this file. External provider keys stay under autoSolver.external in the same config.",
+        "Dashboard edits are written back to this file. Set external provider keys under autoSolver.external in the same config file.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("/tmp/config.json")).toBeInTheDocument();

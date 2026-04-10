@@ -171,7 +171,7 @@ func (c *ConfigAPI) HandlePutConfig(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	normalized.Server.Token = current.Server.Token
+	preserveWriteOnlyConfigFields(&normalized, current)
 	if err := config.SaveFileConfig(&normalized, path); err != nil {
 		httpx.Error(w, 500, err)
 		return
@@ -269,7 +269,20 @@ func (c *ConfigAPI) tokenConfigured(cfg config.FileConfig) bool {
 
 func redactToken(cfg config.FileConfig) config.FileConfig {
 	cfg.Server.Token = ""
+	cfg.Security.StateEncryptionKey = nil
+	cfg.AutoSolver.External.CapsolverKey = ""
+	cfg.AutoSolver.External.TwoCaptchaKey = ""
 	return cfg
+}
+
+func preserveWriteOnlyConfigFields(dst, src *config.FileConfig) {
+	if dst == nil || src == nil {
+		return
+	}
+	dst.Server.Token = src.Server.Token
+	dst.Security.StateEncryptionKey = src.Security.StateEncryptionKey
+	dst.AutoSolver.External.CapsolverKey = src.AutoSolver.External.CapsolverKey
+	dst.AutoSolver.External.TwoCaptchaKey = src.AutoSolver.External.TwoCaptchaKey
 }
 
 func (c *ConfigAPI) restartReasonsFor(next config.FileConfig) []string {

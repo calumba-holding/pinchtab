@@ -380,6 +380,7 @@ func (fc FileConfig) MarshalJSON() ([]byte, error) {
 			AllowUpload:            fc.Security.AllowUpload,
 			AllowClipboard:         fc.Security.AllowClipboard,
 			AllowStateExport:       fc.Security.AllowStateExport,
+			StateEncryptionKey:     fc.Security.StateEncryptionKey,
 			EnableActionGuards:     fc.Security.EnableActionGuards,
 			UploadMaxRequestBytes:  fc.Security.UploadMaxRequestBytes,
 			UploadMaxFiles:         fc.Security.UploadMaxFiles,
