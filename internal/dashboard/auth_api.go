@@ -9,17 +9,18 @@ import (
 	"time"
 
 	"github.com/pinchtab/pinchtab/internal/authn"
+	"github.com/pinchtab/pinchtab/internal/browsersession"
 	"github.com/pinchtab/pinchtab/internal/config"
 	"github.com/pinchtab/pinchtab/internal/httpx"
 )
 
 type AuthAPI struct {
 	runtime      *config.RuntimeConfig
-	sessions     *authn.SessionManager
+	sessions     *browsersession.Manager
 	loginLimiter *authn.AttemptLimiter
 }
 
-func NewAuthAPI(runtime *config.RuntimeConfig, sessions *authn.SessionManager) *AuthAPI {
+func NewAuthAPI(runtime *config.RuntimeConfig, sessions *browsersession.Manager) *AuthAPI {
 	return &AuthAPI{
 		runtime:  runtime,
 		sessions: sessions,

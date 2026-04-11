@@ -7,12 +7,14 @@ import (
 	"time"
 )
 
+const defaultSessionCookieLifetime = 7 * 24 * time.Hour
+
 // SetSessionCookie stores the opaque dashboard session id in an HttpOnly
 // same-site cookie so browser APIs can authenticate without exposing the
 // underlying bearer token to JavaScript.
 func SetSessionCookie(w http.ResponseWriter, r *http.Request, sessionID string, maxLifetime time.Duration, trustProxy bool, cookieSecure *bool) {
 	if maxLifetime <= 0 {
-		maxLifetime = DefaultSessionMaxLifetime
+		maxLifetime = defaultSessionCookieLifetime
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,

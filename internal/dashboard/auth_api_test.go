@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/pinchtab/pinchtab/internal/authn"
+	"github.com/pinchtab/pinchtab/internal/browsersession"
 	"github.com/pinchtab/pinchtab/internal/config"
 )
 
 func TestAuthAPIHandleLogin(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, sessions)
 
 	req := httptest.NewRequest("POST", "https://pinchtab.example/api/auth/login", strings.NewReader(`{"token":"secret-token"}`))
@@ -50,7 +51,7 @@ func TestAuthAPIHandleLogin(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogin_LocalhostHTTPUsesNonSecureCookie(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, sessions)
 
 	req := httptest.NewRequest("POST", "http://localhost:9867/api/auth/login", strings.NewReader(`{"token":"secret-token"}`))
@@ -73,7 +74,7 @@ func TestAuthAPIHandleLogin_LocalhostHTTPUsesNonSecureCookie(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogin_LANHTTPUsesNonSecureCookie(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, sessions)
 
 	req := httptest.NewRequest("POST", "http://192.168.1.50:9867/api/auth/login", strings.NewReader(`{"token":"secret-token"}`))
@@ -96,7 +97,7 @@ func TestAuthAPIHandleLogin_LANHTTPUsesNonSecureCookie(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogin_TrustedProxyHTTPSUsesSecureCookie(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	api := NewAuthAPI(&config.RuntimeConfig{
 		Token:             "secret-token",
 		TrustProxyHeaders: true,
@@ -124,7 +125,7 @@ func TestAuthAPIHandleLogin_TrustedProxyHTTPSUsesSecureCookie(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogin_CookieSecureFalseOverridesHTTPS(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	forceInsecure := false
 	api := NewAuthAPI(&config.RuntimeConfig{
 		Token:        "secret-token",
@@ -150,7 +151,7 @@ func TestAuthAPIHandleLogin_CookieSecureFalseOverridesHTTPS(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogin_CookieSecureTrueRejectsPlainHTTP(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	forceSecure := true
 	api := NewAuthAPI(&config.RuntimeConfig{
 		Token:        "secret-token",
@@ -176,7 +177,7 @@ func TestAuthAPIHandleLogin_CookieSecureTrueRejectsPlainHTTP(t *testing.T) {
 }
 
 func TestAuthAPIHandleLoginRejectsBadToken(t *testing.T) {
-	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, authn.NewSessionManager(authn.SessionConfig{}))
+	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, browsersession.NewManager(browsersession.Config{}))
 
 	req := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(`{"token":"wrong"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -194,7 +195,7 @@ func TestAuthAPIHandleLoginRejectsBadToken(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogoutClearsCookie(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	sessionID, err := sessions.Create("secret-token")
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -223,7 +224,7 @@ func TestAuthAPIHandleLogoutClearsCookie(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogout_LocalhostHTTPClearsNonSecureCookie(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	sessionID, err := sessions.Create("secret-token")
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -250,7 +251,7 @@ func TestAuthAPIHandleLogout_LocalhostHTTPClearsNonSecureCookie(t *testing.T) {
 }
 
 func TestAuthAPIHandleLogout_LANHTTPClearsNonSecureCookie(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	sessionID, err := sessions.Create("secret-token")
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -277,7 +278,7 @@ func TestAuthAPIHandleLogout_LANHTTPClearsNonSecureCookie(t *testing.T) {
 }
 
 func TestAuthAPIHandleElevateMarksSessionElevated(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	sessionID, err := sessions.Create("secret-token")
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -300,7 +301,7 @@ func TestAuthAPIHandleElevateMarksSessionElevated(t *testing.T) {
 }
 
 func TestAuthAPIHandleElevateRejectsBadToken(t *testing.T) {
-	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	sessions := browsersession.NewManager(browsersession.Config{})
 	sessionID, err := sessions.Create("secret-token")
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -323,7 +324,7 @@ func TestAuthAPIHandleElevateRejectsBadToken(t *testing.T) {
 }
 
 func TestAuthAPIHandleLoginRateLimitsRepeatedFailures(t *testing.T) {
-	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, authn.NewSessionManager(authn.SessionConfig{}))
+	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, browsersession.NewManager(browsersession.Config{}))
 	api.loginLimiter = authn.NewAttemptLimiter(authn.AttemptLimiterConfig{
 		Window:      time.Minute,
 		MaxAttempts: 1,
@@ -352,7 +353,7 @@ func TestAuthAPIHandleLoginRateLimitsRepeatedFailures(t *testing.T) {
 }
 
 func TestAuthAPIHandleLoginRateLimitIgnoresSpoofedForwardedHeaders(t *testing.T) {
-	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, authn.NewSessionManager(authn.SessionConfig{}))
+	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, browsersession.NewManager(browsersession.Config{}))
 	api.loginLimiter = authn.NewAttemptLimiter(authn.AttemptLimiterConfig{
 		Window:      time.Minute,
 		MaxAttempts: 1,

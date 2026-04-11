@@ -1,4 +1,4 @@
-package authn
+package browsersession
 
 import (
 	"crypto/rand"
@@ -18,7 +18,7 @@ const (
 	DefaultSessionElevationWindow = 15 * time.Minute
 )
 
-type SessionConfig struct {
+type Config struct {
 	IdleTimeout                   time.Duration
 	MaxLifetime                   time.Duration
 	ElevationWindow               time.Duration
@@ -27,7 +27,7 @@ type SessionConfig struct {
 	PersistElevationAcrossRestart bool
 }
 
-type SessionManager struct {
+type Manager struct {
 	mu                            sync.Mutex
 	sessions                      map[string]sessionState
 	idleTimeout                   time.Duration
@@ -59,8 +59,8 @@ type persistedSessionRecord struct {
 	TokenHash     string    `json:"tokenHash"`
 }
 
-func NewSessionManager(cfg SessionConfig) *SessionManager {
-	m := &SessionManager{
+func NewManager(cfg Config) *Manager {
+	m := &Manager{
 		sessions: make(map[string]sessionState),
 		now:      time.Now,
 	}
@@ -71,7 +71,7 @@ func NewSessionManager(cfg SessionConfig) *SessionManager {
 	return m
 }
 
-func (m *SessionManager) Create(token string) (string, error) {
+func (m *Manager) Create(token string) (string, error) {
 	if m == nil {
 		return "", nil
 	}
@@ -91,7 +91,7 @@ func (m *SessionManager) Create(token string) (string, error) {
 	return id, nil
 }
 
-func (m *SessionManager) Validate(sessionID, token string) bool {
+func (m *Manager) Validate(sessionID, token string) bool {
 	if m == nil {
 		return false
 	}
@@ -121,7 +121,7 @@ func (m *SessionManager) Validate(sessionID, token string) bool {
 	return true
 }
 
-func (m *SessionManager) Elevate(sessionID, token string) bool {
+func (m *Manager) Elevate(sessionID, token string) bool {
 	if m == nil {
 		return false
 	}
@@ -152,7 +152,7 @@ func (m *SessionManager) Elevate(sessionID, token string) bool {
 	return true
 }
 
-func (m *SessionManager) IsElevated(sessionID, token string) bool {
+func (m *Manager) IsElevated(sessionID, token string) bool {
 	if m == nil {
 		return false
 	}
@@ -178,7 +178,7 @@ func (m *SessionManager) IsElevated(sessionID, token string) bool {
 	return !state.ElevatedUntil.IsZero() && !now.After(state.ElevatedUntil)
 }
 
-func (m *SessionManager) Revoke(sessionID string) {
+func (m *Manager) Revoke(sessionID string) {
 	if m == nil {
 		return
 	}
@@ -192,28 +192,28 @@ func (m *SessionManager) Revoke(sessionID string) {
 	m.mu.Unlock()
 }
 
-func (m *SessionManager) MaxLifetime() time.Duration {
+func (m *Manager) MaxLifetime() time.Duration {
 	if m == nil {
 		return DefaultSessionMaxLifetime
 	}
 	return m.maxLifetime
 }
 
-func (m *SessionManager) IdleTimeout() time.Duration {
+func (m *Manager) IdleTimeout() time.Duration {
 	if m == nil {
 		return DefaultSessionIdleTimeout
 	}
 	return m.idleTimeout
 }
 
-func (m *SessionManager) ElevationWindow() time.Duration {
+func (m *Manager) ElevationWindow() time.Duration {
 	if m == nil {
 		return DefaultSessionElevationWindow
 	}
 	return m.elevationWindow
 }
 
-func (m *SessionManager) UpdateConfig(cfg SessionConfig) {
+func (m *Manager) UpdateConfig(cfg Config) {
 	if m == nil {
 		return
 	}
@@ -234,7 +234,7 @@ func (m *SessionManager) UpdateConfig(cfg SessionConfig) {
 	}
 }
 
-func (m *SessionManager) applyConfigLocked(cfg SessionConfig) {
+func (m *Manager) applyConfigLocked(cfg Config) {
 	idle := cfg.IdleTimeout
 	if idle <= 0 {
 		idle = DefaultSessionIdleTimeout
@@ -258,16 +258,16 @@ func (m *SessionManager) applyConfigLocked(cfg SessionConfig) {
 	m.persistElevationAcrossRestart = cfg.PersistElevationAcrossRestart
 }
 
-func (m *SessionManager) sessionValid(state sessionState, now time.Time, expected [32]byte) bool {
+func (m *Manager) sessionValid(state sessionState, now time.Time, expected [32]byte) bool {
 	return m.sessionTimeValid(state, now) && state.TokenHash == expected
 }
 
-func (m *SessionManager) sessionTimeValid(state sessionState, now time.Time) bool {
+func (m *Manager) sessionTimeValid(state sessionState, now time.Time) bool {
 	return now.Sub(state.LastSeen) <= m.idleTimeout &&
 		now.Sub(state.CreatedAt) <= m.maxLifetime
 }
 
-func (m *SessionManager) pruneExpiredLocked(now time.Time) {
+func (m *Manager) pruneExpiredLocked(now time.Time) {
 	for id, state := range m.sessions {
 		if !m.sessionTimeValid(state, now) {
 			delete(m.sessions, id)
@@ -275,7 +275,7 @@ func (m *SessionManager) pruneExpiredLocked(now time.Time) {
 	}
 }
 
-func (m *SessionManager) loadPersisted() {
+func (m *Manager) loadPersisted() {
 	if m == nil {
 		return
 	}
@@ -328,7 +328,7 @@ func (m *SessionManager) loadPersisted() {
 	m.saveLocked()
 }
 
-func (m *SessionManager) saveLocked() {
+func (m *Manager) saveLocked() {
 	if !m.persist || m.persistPath == "" {
 		return
 	}

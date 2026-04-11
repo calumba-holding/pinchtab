@@ -1,4 +1,4 @@
-package agentsession
+package session
 
 import (
 	"encoding/json"

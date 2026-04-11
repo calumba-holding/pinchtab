@@ -11,6 +11,7 @@ import (
 
 	"github.com/pinchtab/pinchtab/internal/authn"
 	"github.com/pinchtab/pinchtab/internal/bridge"
+	"github.com/pinchtab/pinchtab/internal/browsersession"
 	"github.com/pinchtab/pinchtab/internal/config"
 	"github.com/pinchtab/pinchtab/internal/httpx"
 )
@@ -33,7 +34,7 @@ type ConfigAPI struct {
 	profiles  profileLister
 	applier   runtimeConfigApplier
 	agents    agentCounter
-	sessions  *authn.SessionManager
+	sessions  *browsersession.Manager
 	version   string
 	startedAt time.Time
 	boot      config.FileConfig
@@ -94,7 +95,7 @@ func NewConfigAPI(
 	}
 }
 
-func (c *ConfigAPI) SetSessionManager(sessions *authn.SessionManager) {
+func (c *ConfigAPI) SetSessionManager(sessions *browsersession.Manager) {
 	if c == nil {
 		return
 	}
@@ -179,7 +180,7 @@ func (c *ConfigAPI) HandlePutConfig(w http.ResponseWriter, r *http.Request) {
 
 	config.ApplyFileConfigToRuntime(c.runtime, &normalized)
 	if c.sessions != nil {
-		c.sessions.UpdateConfig(SessionManagerConfig(c.runtime))
+		c.sessions.UpdateConfig(BrowserSessionConfig(c.runtime))
 	}
 	if c.applier != nil {
 		c.applier.ApplyRuntimeConfig(c.runtime)

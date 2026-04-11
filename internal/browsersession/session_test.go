@@ -1,4 +1,4 @@
-package authn
+package browsersession
 
 import (
 	"path/filepath"
@@ -8,7 +8,7 @@ import (
 
 func TestSessionManagerValidateAndExpiry(t *testing.T) {
 	now := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
-	mgr := NewSessionManager(SessionConfig{
+	mgr := NewManager(Config{
 		IdleTimeout: time.Hour,
 		MaxLifetime: 24 * time.Hour,
 	})
@@ -34,7 +34,7 @@ func TestSessionManagerValidateAndExpiry(t *testing.T) {
 }
 
 func TestSessionManagerInvalidatesOnTokenChange(t *testing.T) {
-	mgr := NewSessionManager(SessionConfig{})
+	mgr := NewManager(Config{})
 	sessionID, err := mgr.Create("secret")
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -47,7 +47,7 @@ func TestSessionManagerInvalidatesOnTokenChange(t *testing.T) {
 
 func TestSessionManagerElevationWindow(t *testing.T) {
 	now := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
-	mgr := NewSessionManager(SessionConfig{
+	mgr := NewManager(Config{
 		IdleTimeout:     time.Hour,
 		MaxLifetime:     24 * time.Hour,
 		ElevationWindow: 15 * time.Minute,
@@ -78,7 +78,7 @@ func TestSessionManagerPersistsAcrossRestart(t *testing.T) {
 	now := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 	path := filepath.Join(t.TempDir(), "dashboard-auth-sessions.json")
 
-	mgr := NewSessionManager(SessionConfig{
+	mgr := NewManager(Config{
 		IdleTimeout: 365 * 24 * time.Hour,
 		MaxLifetime: 365 * 24 * time.Hour,
 		Persist:     true,
@@ -94,7 +94,7 @@ func TestSessionManagerPersistsAcrossRestart(t *testing.T) {
 		t.Fatal("Validate() before restart = false, want true")
 	}
 
-	restarted := NewSessionManager(SessionConfig{
+	restarted := NewManager(Config{
 		IdleTimeout: 365 * 24 * time.Hour,
 		MaxLifetime: 365 * 24 * time.Hour,
 		Persist:     true,
@@ -111,7 +111,7 @@ func TestSessionManagerClearsElevationAcrossRestartByDefault(t *testing.T) {
 	now := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 	path := filepath.Join(t.TempDir(), "dashboard-auth-sessions.json")
 
-	mgr := NewSessionManager(SessionConfig{
+	mgr := NewManager(Config{
 		IdleTimeout:     365 * 24 * time.Hour,
 		MaxLifetime:     365 * 24 * time.Hour,
 		ElevationWindow: 15 * time.Minute,
@@ -128,7 +128,7 @@ func TestSessionManagerClearsElevationAcrossRestartByDefault(t *testing.T) {
 		t.Fatal("Elevate() = false, want true")
 	}
 
-	restarted := NewSessionManager(SessionConfig{
+	restarted := NewManager(Config{
 		IdleTimeout:     365 * 24 * time.Hour,
 		MaxLifetime:     365 * 24 * time.Hour,
 		ElevationWindow: 15 * time.Minute,

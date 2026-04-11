@@ -6,23 +6,23 @@ import (
 	"strings"
 
 	"github.com/pinchtab/pinchtab/internal/activity"
-	"github.com/pinchtab/pinchtab/internal/agentsession"
 	"github.com/pinchtab/pinchtab/internal/authn"
 	"github.com/pinchtab/pinchtab/internal/httpx"
+	"github.com/pinchtab/pinchtab/internal/session"
 )
 
-// AgentSessionAPI handles CRUD operations for agent sessions.
-type AgentSessionAPI struct {
-	store *agentsession.Store
+// SessionAPI handles CRUD operations for sessions.
+type SessionAPI struct {
+	store *session.Store
 }
 
-// NewAgentSessionAPI creates a new agent session API handler.
-func NewAgentSessionAPI(store *agentsession.Store) *AgentSessionAPI {
-	return &AgentSessionAPI{store: store}
+// NewSessionAPI creates a new session API handler.
+func NewSessionAPI(store *session.Store) *SessionAPI {
+	return &SessionAPI{store: store}
 }
 
-// RegisterHandlers registers agent session API routes.
-func (a *AgentSessionAPI) RegisterHandlers(mux *http.ServeMux) {
+// RegisterHandlers registers session API routes.
+func (a *SessionAPI) RegisterHandlers(mux *http.ServeMux) {
 	if a == nil || a.store == nil || !a.store.Enabled() {
 		return
 	}
@@ -33,7 +33,7 @@ func (a *AgentSessionAPI) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("POST /sessions/{id}/revoke", a.handleRevoke)
 }
 
-func (a *AgentSessionAPI) handleCreate(w http.ResponseWriter, r *http.Request) {
+func (a *SessionAPI) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AgentID string `json:"agentId"`
 		Label   string `json:"label,omitempty"`
@@ -49,7 +49,7 @@ func (a *AgentSessionAPI) handleCreate(w http.ResponseWriter, r *http.Request) {
 
 	sessionID, token, err := a.store.Create(req.AgentID, req.Label)
 	if err != nil {
-		httpx.ErrorCode(w, http.StatusInternalServerError, "create_failed", "failed to create agent session", false, nil)
+		httpx.ErrorCode(w, http.StatusInternalServerError, "create_failed", "failed to create session", false, nil)
 		return
 	}
 
@@ -72,46 +72,46 @@ func (a *AgentSessionAPI) handleCreate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *AgentSessionAPI) handleList(w http.ResponseWriter, _ *http.Request) {
+func (a *SessionAPI) handleList(w http.ResponseWriter, _ *http.Request) {
 	sessions := a.store.List()
 	if sessions == nil {
-		sessions = []agentsession.Session{}
+		sessions = []session.Session{}
 	}
 	httpx.JSON(w, http.StatusOK, sessions)
 }
 
-func (a *AgentSessionAPI) handleGet(w http.ResponseWriter, r *http.Request) {
+func (a *SessionAPI) handleGet(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	sess, ok := a.store.Get(id)
 	if !ok {
-		httpx.ErrorCode(w, http.StatusNotFound, "session_not_found", "agent session not found", false, nil)
+		httpx.ErrorCode(w, http.StatusNotFound, "session_not_found", "session not found", false, nil)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, sess)
 }
 
-func (a *AgentSessionAPI) handleMe(w http.ResponseWriter, r *http.Request) {
+func (a *SessionAPI) handleMe(w http.ResponseWriter, r *http.Request) {
 	creds := authn.CredentialsFromRequest(r)
 	if creds.Method != authn.MethodSession {
 		httpx.ErrorCode(w, http.StatusUnauthorized, "session_auth_required", "this endpoint requires session authentication", false, nil)
 		return
 	}
-	sess, ok := a.store.Authenticate(creds.Value)
+	sess, ok := session.FromRequest(r)
 	if !ok || sess == nil {
-		httpx.ErrorCode(w, http.StatusUnauthorized, "bad_session", "invalid or expired agent session", false, nil)
+		httpx.ErrorCode(w, http.StatusUnauthorized, "bad_session", "invalid or expired session", false, nil)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, sess)
 }
 
-func (a *AgentSessionAPI) handleRevoke(w http.ResponseWriter, r *http.Request) {
+func (a *SessionAPI) handleRevoke(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	creds := authn.CredentialsFromRequest(r)
 	switch creds.Method {
 	case authn.MethodSession:
-		sess, ok := a.store.Authenticate(creds.Value)
+		sess, ok := session.FromRequest(r)
 		if !ok || sess == nil {
-			httpx.ErrorCode(w, http.StatusUnauthorized, "bad_session", "invalid or expired agent session", false, nil)
+			httpx.ErrorCode(w, http.StatusUnauthorized, "bad_session", "invalid or expired session", false, nil)
 			return
 		}
 		if sess.ID != id {
@@ -125,7 +125,7 @@ func (a *AgentSessionAPI) handleRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !a.store.Revoke(id) {
-		httpx.ErrorCode(w, http.StatusNotFound, "session_not_found", "agent session not found", false, nil)
+		httpx.ErrorCode(w, http.StatusNotFound, "session_not_found", "session not found", false, nil)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})

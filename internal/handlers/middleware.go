@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/pinchtab/pinchtab/internal/activity"
-	"github.com/pinchtab/pinchtab/internal/agentsession"
 	"github.com/pinchtab/pinchtab/internal/authn"
+	"github.com/pinchtab/pinchtab/internal/browsersession"
 	"github.com/pinchtab/pinchtab/internal/config"
 	"github.com/pinchtab/pinchtab/internal/httpx"
+	"github.com/pinchtab/pinchtab/internal/session"
 )
 
 var (
@@ -85,7 +86,7 @@ func AuthMiddleware(cfg *config.RuntimeConfig, next http.Handler) http.Handler {
 	return AuthMiddlewareWithSessions(cfg, nil, nil, next)
 }
 
-func AuthMiddlewareWithSessions(cfg *config.RuntimeConfig, sessions *authn.SessionManager, agentSessions *agentsession.Store, next http.Handler) http.Handler {
+func AuthMiddlewareWithSessions(cfg *config.RuntimeConfig, sessions *browsersession.Manager, agentSessions *session.Store, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isPublicDashboardPath(r.URL.Path) || isPublicAuthPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
@@ -135,6 +136,7 @@ func AuthMiddlewareWithSessions(cfg *config.RuntimeConfig, sessions *authn.Sessi
 				AgentID:   sess.AgentID,
 				SessionID: sess.ID,
 			})
+			r = session.WithSession(r, sess)
 		case authn.MethodHeader:
 			if subtle.ConstantTimeCompare([]byte(creds.Value), []byte(token)) != 1 {
 				authn.ClearSessionCookie(w, r, cfg != nil && cfg.TrustProxyHeaders, cookieSecureSetting(cfg))
@@ -176,7 +178,7 @@ func AuthMiddlewareWithSessions(cfg *config.RuntimeConfig, sessions *authn.Sessi
 	})
 }
 
-func sessionRequestAllowed(r *http.Request, sess *agentsession.Session) bool {
+func sessionRequestAllowed(r *http.Request, sess *session.Session) bool {
 	method := strings.ToUpper(strings.TrimSpace(r.Method))
 	path := strings.TrimSpace(r.URL.Path)
 	if method == http.MethodPost && sessionRevokePath(path) {

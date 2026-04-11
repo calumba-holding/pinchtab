@@ -8,20 +8,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pinchtab/pinchtab/internal/agentsession"
+	"github.com/pinchtab/pinchtab/internal/session"
 )
 
-func newTestSessionStore() *agentsession.Store {
-	return agentsession.NewStore(agentsession.Config{
+func newTestSessionStore() *session.Store {
+	return session.NewStore(session.Config{
 		Enabled:     true,
 		IdleTimeout: 30 * time.Minute,
 		MaxLifetime: 24 * time.Hour,
 	})
 }
 
-func newTestSessionMux(store *agentsession.Store) *http.ServeMux {
+func newTestSessionMux(store *session.Store) *http.ServeMux {
 	mux := http.NewServeMux()
-	NewAgentSessionAPI(store).RegisterHandlers(mux)
+	NewSessionAPI(store).RegisterHandlers(mux)
 	return mux
 }
 
@@ -174,10 +174,15 @@ func TestAgentSessionAPI_Me(t *testing.T) {
 	store := newTestSessionStore()
 	mux := newTestSessionMux(store)
 
-	_, token, _ := store.Create("agent-1", "my-session")
+	sessionID, token, _ := store.Create("agent-1", "my-session")
+	sess, ok := store.Get(sessionID)
+	if !ok || sess == nil {
+		t.Fatal("expected session to exist")
+	}
 
 	req := httptest.NewRequest("GET", "/sessions/me", nil)
 	req.Header.Set("Authorization", "Session "+token)
+	req = session.WithSession(req, sess)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -258,9 +263,14 @@ func TestAgentSessionAPI_Revoke_SessionOwnerAllowed(t *testing.T) {
 	mux := newTestSessionMux(store)
 
 	id, token, _ := store.Create("agent-1", "")
+	sess, ok := store.Get(id)
+	if !ok || sess == nil {
+		t.Fatal("expected session to exist")
+	}
 
 	req := httptest.NewRequest("POST", "/sessions/"+id+"/revoke", nil)
 	req.Header.Set("Authorization", "Session "+token)
+	req = session.WithSession(req, sess)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -273,11 +283,16 @@ func TestAgentSessionAPI_Revoke_SessionCallerCannotRevokeOtherSession(t *testing
 	store := newTestSessionStore()
 	mux := newTestSessionMux(store)
 
-	_, token, _ := store.Create("agent-1", "")
+	id, token, _ := store.Create("agent-1", "")
+	sess, ok := store.Get(id)
+	if !ok || sess == nil {
+		t.Fatal("expected session to exist")
+	}
 	otherID, _, _ := store.Create("agent-2", "")
 
 	req := httptest.NewRequest("POST", "/sessions/"+otherID+"/revoke", nil)
 	req.Header.Set("Authorization", "Session "+token)
+	req = session.WithSession(req, sess)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -302,7 +317,7 @@ func TestAgentSessionAPI_Revoke_RejectsUnauthenticatedCaller(t *testing.T) {
 }
 
 func TestAgentSessionAPI_RegisterHandlers_NoOpsWhenDisabled(t *testing.T) {
-	store := agentsession.NewStore(agentsession.Config{
+	store := session.NewStore(session.Config{
 		Enabled:     false,
 		Mode:        "off",
 		IdleTimeout: 30 * time.Minute,

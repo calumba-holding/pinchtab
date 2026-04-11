@@ -1,8 +1,8 @@
-// Package agentsession provides durable, revocable session-based
-// authentication for automated agents. Each session maps a high-entropy
+// Package session provides durable, revocable session-based
+// authentication for automated clients. Each session maps a high-entropy
 // token to an agentId, allowing agents to authenticate with a single
 // environment variable (PINCHTAB_SESSION) instead of the server bearer token.
-package agentsession
+package session
 
 import (
 	"crypto/rand"
@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// Session represents a durable, revocable agent session.
+// Session represents a durable, revocable authenticated session.
 type Session struct {
 	ID          string        `json:"id"`
 	AgentID     string        `json:"agentId"`
@@ -41,7 +41,7 @@ type Config struct {
 	PersistPath string
 }
 
-// Store manages agent sessions with persistence.
+// Store manages authenticated sessions with persistence.
 type Store struct {
 	mu       sync.Mutex
 	sessions map[string]*Session // keyed by session ID
@@ -58,7 +58,7 @@ const (
 	StatusExpired = "expired"
 )
 
-// NewStore creates a new agent session store.
+// NewStore creates a new session store.
 func NewStore(cfg Config) *Store {
 	s := &Store{
 		sessions: make(map[string]*Session),
@@ -82,7 +82,7 @@ func (s *Store) applyConfig(cfg Config) {
 	s.cfg = cfg
 }
 
-// Create generates a new agent session and returns the session ID and
+// Create generates a new session and returns the session ID and
 // plaintext token. The token is returned exactly once and is never stored.
 func (s *Store) Create(agentID, label string) (sessionID, sessionToken string, err error) {
 	if s == nil {
@@ -249,7 +249,7 @@ func (s *Store) UpdateConfig(cfg Config) {
 	s.mu.Unlock()
 }
 
-// Enabled reports whether agent sessions are enabled.
+// Enabled reports whether session auth is enabled.
 func (s *Store) Enabled() bool {
 	if s == nil {
 		return false
@@ -291,11 +291,11 @@ func (s *Store) pruneExpiredLocked() {
 // persistence types
 
 type persistedStore struct {
-	SavedAt  time.Time               `json:"savedAt"`
-	Sessions []persistedAgentSession `json:"sessions"`
+	SavedAt  time.Time          `json:"savedAt"`
+	Sessions []persistedSession `json:"sessions"`
 }
 
-type persistedAgentSession struct {
+type persistedSession struct {
 	ID         string    `json:"id"`
 	AgentID    string    `json:"agentId"`
 	Label      string    `json:"label,omitempty"`
@@ -362,10 +362,10 @@ func (s *Store) saveLocked() {
 
 	snapshot := persistedStore{
 		SavedAt:  s.now().UTC(),
-		Sessions: make([]persistedAgentSession, 0, len(s.sessions)),
+		Sessions: make([]persistedSession, 0, len(s.sessions)),
 	}
 	for _, sess := range s.sessions {
-		snapshot.Sessions = append(snapshot.Sessions, persistedAgentSession{
+		snapshot.Sessions = append(snapshot.Sessions, persistedSession{
 			ID:         sess.ID,
 			AgentID:    sess.AgentID,
 			Label:      sess.Label,
