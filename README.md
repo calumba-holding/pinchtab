@@ -327,12 +327,6 @@ PinchTab is a fully open-source, local-first tool. No telemetry, no analytics, a
 
 Full docs at **[pinchtab.com/docs](https://pinchtab.com/docs)**
 
-### MCP (SMCP) integration
-
-An **SMCP plugin** in this repo lets AI agents control PinchTab via the [Model Context Protocol](https://github.com/sanctumos/smcp) (SMCP). One plugin exposes 15 tools (e.g. `pinchtab__navigate`, `pinchtab__snapshot`, `pinchtab__action`). No extra runtime deps (stdlib only). See **[plugins/README.md](plugins/README.md)** for setup (env vars and paths).
-
----
-
 ## Examples
 
 ### AI Agent Automation

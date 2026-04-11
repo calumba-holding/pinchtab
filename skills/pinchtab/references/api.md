@@ -265,7 +265,13 @@ Default to read-only DOM inspection and avoid reading cookies, localStorage, or 
 # CLI: pinchtab eval "document.title"
 curl -X POST /evaluate -H 'Content-Type: application/json' \
   -d '{"expression": "document.title"}'
+
+# Resolve a returned promise before responding
+curl -X POST /evaluate -H 'Content-Type: application/json' \
+  -d '{"expression": "Promise.resolve(document.title)", "awaitPromise": true}'
 ```
+
+Set `awaitPromise: true` when the expression returns a promise and you want the resolved value. If omitted, behavior stays unchanged.
 
 ## Tab management
 

@@ -8,6 +8,31 @@ import (
 
 func (h *Handlers) HandleOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	security := h.endpointSecurityStates()
+	evaluateRequestBody := map[string]any{
+		"required": true,
+		"content": map[string]any{
+			"application/json": map[string]any{
+				"schema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"tabId": map[string]any{
+							"type":        "string",
+							"description": "Optional tab ID for top-level /evaluate requests",
+						},
+						"expression": map[string]any{
+							"type":        "string",
+							"description": "JavaScript expression to evaluate",
+						},
+						"awaitPromise": map[string]any{
+							"type":        "boolean",
+							"description": "Wait for a returned promise to resolve before returning the result",
+						},
+					},
+					"required": []string{"expression"},
+				},
+			},
+		},
+	}
 	httpx.JSON(w, 200, map[string]any{
 		"openapi": "3.0.0",
 		"info": map[string]any{
@@ -30,11 +55,13 @@ func (h *Handlers) HandleOpenAPI(w http.ResponseWriter, _ *http.Request) {
 			"/evaluate": map[string]any{"post": map[string]any{
 				"summary":            "Run JavaScript in the current tab",
 				"description":        security["evaluate"].Message,
+				"requestBody":        evaluateRequestBody,
 				"x-pinchtab-enabled": security["evaluate"].Enabled,
 			}},
 			"/tabs/{id}/evaluate": map[string]any{"post": map[string]any{
 				"summary":            "Run JavaScript in a specific tab",
 				"description":        security["evaluate"].Message,
+				"requestBody":        evaluateRequestBody,
 				"x-pinchtab-enabled": security["evaluate"].Enabled,
 			}},
 			"/macro": map[string]any{"post": map[string]any{

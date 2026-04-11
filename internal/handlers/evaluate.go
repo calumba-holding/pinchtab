@@ -70,7 +70,7 @@ func (h *Handlers) HandleEvaluate(w http.ResponseWriter, r *http.Request) {
 			return p.WithAwaitPromise(true)
 		})
 	}
-	if err := chromedp.Run(tCtx, chromedp.Evaluate(req.Expression, &result, opts...)); err != nil {
+	if err := h.evalRuntime(tCtx, req.Expression, &result, opts...); err != nil {
 		httpx.Error(w, 500, fmt.Errorf("evaluate: %w", err))
 		return
 	}

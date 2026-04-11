@@ -209,6 +209,51 @@ func TestOpenAPIIncludesSensitiveEndpointStatus(t *testing.T) {
 	}
 }
 
+func TestOpenAPIIncludesEvaluateAwaitPromiseSchema(t *testing.T) {
+	h := New(&mockBridge{}, &config.RuntimeConfig{AllowEvaluate: true}, nil, nil, nil)
+
+	req := httptest.NewRequest("GET", "/openapi.json", nil)
+	w := httptest.NewRecorder()
+	h.HandleOpenAPI(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 from /openapi.json, got %d", w.Code)
+	}
+
+	var doc map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal openapi: %v", err)
+	}
+
+	paths, ok := doc["paths"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected paths object, got %T", doc["paths"])
+	}
+	evaluatePath, ok := paths["/evaluate"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected /evaluate path, got %T", paths["/evaluate"])
+	}
+	post, ok := evaluatePath["post"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected /evaluate POST operation, got %T", evaluatePath["post"])
+	}
+	requestBody, ok := post["requestBody"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected requestBody, got %T", post["requestBody"])
+	}
+	content := requestBody["content"].(map[string]any)
+	appJSON := content["application/json"].(map[string]any)
+	schema := appJSON["schema"].(map[string]any)
+	properties := schema["properties"].(map[string]any)
+	awaitPromise, ok := properties["awaitPromise"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected awaitPromise property, got %T", properties["awaitPromise"])
+	}
+	if awaitPromise["type"] != "boolean" {
+		t.Fatalf("expected awaitPromise type boolean, got %#v", awaitPromise["type"])
+	}
+}
+
 func TestHandleNavigate(t *testing.T) {
 	stubNavigateHostResolution(t, func(context.Context, string, string) ([]net.IP, error) {
 		return []net.IP{net.ParseIP("93.184.216.34")}, nil
