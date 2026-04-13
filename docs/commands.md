@@ -73,12 +73,26 @@ pinchtab type <selector> <text>         # Type via key events
 pinchtab fill <selector> <text>         # Fill directly
 pinchtab press <key>                    # Press a key
 pinchtab hover [selector]               # Hover an element
+pinchtab mouse move [selector]          # Move the mouse to an element or coordinates
+pinchtab mouse down [selector]          # Press a mouse button
+pinchtab mouse up [selector]            # Release a mouse button
+pinchtab mouse wheel [selector]         # Dispatch wheel deltas
 pinchtab focus [selector]               # Focus an element
 pinchtab scroll <selector|pixels>       # Scroll an element or the page
 pinchtab select <selector> <value>      # Select a <select> option
 pinchtab check <selector>               # Check a checkbox or radio
 pinchtab uncheck <selector>             # Uncheck a checkbox or radio
 pinchtab scrollintoview <selector>      # Scroll an element into view
+```
+
+Low-level mouse commands are useful for drag handles, canvas-like UIs, and flows where DOM-native click or hover abstractions are not enough:
+
+```bash
+pinchtab mouse move e5
+pinchtab mouse down e5 --button left
+pinchtab mouse up e5 --button left
+pinchtab mouse wheel e5 --wheel-delta-y 240
+pinchtab mouse move --x 400 --y 320
 ```
 
 ## Page Analysis
@@ -133,6 +147,16 @@ pinchtab clipboard copy <text>          # Alias for write
 pinchtab clipboard paste                # Alias for read
 pinchtab cache clear                    # Clear browser HTTP disk cache
 pinchtab cache status                   # Check if cache can be cleared
+```
+
+Manual handoff and resume are API-only today:
+
+This is currently a temporary, non-blocking implementation. It records handoff state, but it does not yet enforce a hard stop on future automation requests by itself.
+
+```bash
+curl -X POST "$PINCHTAB_SERVER/tabs/<tabId>/handoff"
+curl "$PINCHTAB_SERVER/tabs/<tabId>/handoff"
+curl -X POST "$PINCHTAB_SERVER/tabs/<tabId>/resume"
 ```
 
 ## Capture And Export
@@ -215,6 +239,10 @@ Commands with `--tab` currently include:
 - `click`
 - `dblclick`
 - `hover`
+- `mouse move`
+- `mouse down`
+- `mouse up`
+- `mouse wheel`
 - `focus`
 - `type`
 - `press`

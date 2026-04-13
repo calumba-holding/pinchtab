@@ -110,6 +110,8 @@ pinchtab({ action: "mousewheel", x: 400, y: 300, wheelDeltaY: -320 })
 
 Use `handoff` when manual intervention is required, then resume with a wait condition:
 
+Current limitation: this is advisory/non-blocking right now. The plugin uses `handoff` as coordination plus waiting behavior, but it does not guarantee that later automation is blocked across the server. Treat it as a temporary workflow helper, not as an enforced pause boundary.
+
 ```
 1. pinchtab({ action: "handoff", humanReason: "captcha", humanPrompt: "Please solve CAPTCHA in headed browser" })
 2. pinchtab({ action: "handoff", selector: "text:Dashboard", timeout: 120000 })

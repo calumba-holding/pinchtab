@@ -111,6 +111,22 @@ curl -X POST /action -H 'Content-Type: application/json' \
 curl -X POST /action -H 'Content-Type: application/json' \
   -d '{"kind": "hover", "ref": "e8"}'
 
+# Move pointer without clicking
+curl -X POST /action -H 'Content-Type: application/json' \
+  -d '{"kind": "mousemove", "ref": "e8"}'
+
+# Press and release a mouse button
+curl -X POST /action -H 'Content-Type: application/json' \
+  -d '{"kind": "mousedown", "ref": "e8", "button": "left"}'
+curl -X POST /action -H 'Content-Type: application/json' \
+  -d '{"kind": "mouseup", "ref": "e8", "button": "left"}'
+
+# Wheel at an element or coordinates
+curl -X POST /action -H 'Content-Type: application/json' \
+  -d '{"kind": "mousewheel", "ref": "e8", "wheelDeltaY": 240}'
+curl -X POST /action -H 'Content-Type: application/json' \
+  -d '{"kind": "mousewheel", "x": 400, "y": 320, "wheelDeltaY": -320}'
+
 # Select dropdown option (by value or visible text)
 curl -X POST /action -H 'Content-Type: application/json' \
   -d '{"kind": "select", "ref": "e10", "value": "option2"}'
@@ -126,6 +142,30 @@ curl -X POST /action -H 'Content-Type: application/json' \
 # Click and wait for navigation (link clicks)
 curl -X POST /action -H 'Content-Type: application/json' \
   -d '{"kind": "click", "ref": "e5", "waitNav": true}'
+```
+
+Notes:
+
+- selector-based click and double-click paths resolve through backend node IDs before dispatching pointer events
+- low-level pointer actions accept `ref`, `selector`, `nodeId`, or `x`/`y`
+- `mousedown` and `mouseup` accept `button` with `left`, `right`, or `middle`
+- `mousewheel` accepts `wheelDeltaX` and `wheelDeltaY`; when omitted, legacy `scrollX` / `scrollY` still work
+
+## Wait for page state
+
+```bash
+# CLI: pinchtab wait 'text:Done' / pinchtab wait --url '**/dashboard'
+curl -X POST /wait -H 'Content-Type: application/json' \
+  -d '{"selector":"text:Done","timeout":15000}'
+
+curl -X POST /wait -H 'Content-Type: application/json' \
+  -d '{"url":"**/dashboard","timeout":15000}'
+
+curl -X POST /wait -H 'Content-Type: application/json' \
+  -d '{"load":"networkidle","timeout":15000}'
+
+curl -X POST /wait -H 'Content-Type: application/json' \
+  -d '{"fn":"document.readyState === \"complete\"","timeout":15000}'
 ```
 
 ## Batch actions
@@ -322,9 +362,27 @@ curl -X POST /tabs/TARGET_ID/action \
 curl -X POST /tabs/TARGET_ID/actions \
   -H 'Content-Type: application/json' \
   -d '{"actions": [{"kind": "click", "ref": "e3"}, {"kind": "type", "ref": "e3", "text": "hello"}]}'
+
+# Wait on a specific tab
+curl -X POST /tabs/TARGET_ID/wait \
+  -H 'Content-Type: application/json' \
+  -d '{"selector":"text:Done","timeout":15000}'
+
+# Pause automation for manual intervention
+curl -X POST /tabs/TARGET_ID/handoff \
+  -H 'Content-Type: application/json' \
+  -d '{"reason":"captcha","timeoutMs":120000}'
+
+# Inspect or resume handoff state
+curl /tabs/TARGET_ID/handoff
+curl -X POST /tabs/TARGET_ID/resume \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"completed"}'
 ```
 
 These are equivalent to using `?tabId=TARGET_ID` on top-level endpoints but follow REST conventions. The tab ID comes from `/tabs` or from the `tabId` field in navigate/tab creation responses.
+
+`GET /tabs/{id}/handoff` returns the current status for that tab. `POST /tabs/{id}/resume` clears `paused_handoff` and can carry resume metadata such as `status` or `resolvedData`.
 
 ## Tab locking (multi-agent)
 

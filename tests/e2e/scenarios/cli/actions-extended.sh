@@ -54,7 +54,11 @@ start_test "pinchtab hover (basic)"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
 pt_ok snap
-pt_ok hover e0
+
+HOVER_REF=$(find_ref_by_name "Username:" "$PT_OUT")
+if assert_ref_found "$HOVER_REF" "username input ref"; then
+  pt_ok hover "$HOVER_REF"
+fi
 
 end_test
 

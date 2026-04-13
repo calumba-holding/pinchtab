@@ -94,6 +94,55 @@ assert_ok "hover on button"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
+start_test "pinchtab low-level mouse actions"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/mouse-events.html\"}"
+assert_ok "navigate"
+
+pt_get "/snapshot?filter=interactive"
+assert_ok "snapshot"
+REF=$(find_ref_by_name "Mouse Target")
+assert_ref_found "$REF" "mouse target ref"
+
+pt_post /action "{\"kind\":\"mousemove\",\"ref\":\"${REF}\"}"
+assert_ok "mousemove on target"
+
+pt_post /action "{\"kind\":\"mousedown\",\"ref\":\"${REF}\",\"button\":\"left\"}"
+assert_ok "mousedown on target"
+
+pt_post /action "{\"kind\":\"mouseup\",\"ref\":\"${REF}\",\"button\":\"left\"}"
+assert_ok "mouseup on target"
+
+pt_post /action '{"kind":"mousewheel","x":160,"y":190,"hasXY":true,"wheelDeltaY":240}'
+assert_ok "mousewheel on target coordinates"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mousemoveCount"}'
+assert_ok "evaluate mousemove count"
+assert_result_jq '.result >= 1' "mousemove count incremented" "mousemove count did not increment"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mousedownCount"}'
+assert_ok "evaluate mousedown count"
+assert_json_eq "$RESULT" '.result' '1' "mousedown count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mouseupCount"}'
+assert_ok "evaluate mouseup count"
+assert_json_eq "$RESULT" '.result' '1' "mouseup count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.lastButton"}'
+assert_ok "evaluate last button"
+assert_json_eq "$RESULT" '.result' 'left' "last button is left"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelCount"}'
+assert_ok "evaluate wheel count"
+assert_json_eq "$RESULT" '.result' '1' "wheel count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelDeltaY"}'
+assert_ok "evaluate wheel delta"
+assert_json_eq "$RESULT" '.result' '240' "wheel delta Y accumulated"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
 start_test "pinchtab focus (ref)"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"

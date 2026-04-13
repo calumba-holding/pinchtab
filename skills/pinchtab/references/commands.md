@@ -93,6 +93,19 @@ pinchtab press Escape
 ### `pinchtab hover <ref>`
 Hover over an element to trigger tooltips or hover styles.
 
+### `pinchtab mouse move|down|up|wheel [ref]`
+Low-level pointer controls for cases where DOM-native click or hover behavior is not enough.
+
+```bash
+pinchtab mouse move e5
+pinchtab mouse down e5 --button left
+pinchtab mouse up e5 --button left
+pinchtab mouse wheel e5 --wheel-delta-y 240
+pinchtab mouse move --x 400 --y 320
+```
+
+Use these for drag handles, canvas controls, precise hover choreography, or sites that require exact pointer sequencing.
+
 ### `pinchtab scroll [ref]`
 Scroll the page or a specific element.
 

@@ -73,6 +73,9 @@ GET  /tabs
 POST /tab
 POST /tabs/{id}/close
 GET  /tabs/{id}/metrics
+POST /tabs/{id}/handoff
+GET  /tabs/{id}/handoff
+POST /tabs/{id}/resume
 ```
 
 Navigation request fields:
@@ -88,6 +91,24 @@ Important behavior:
 
 - `POST /navigate` creates a new tab when `tabId` is omitted
 - `POST /tab` supports `new`, `close`, and `focus`
+
+## Handoff And Manual Intervention
+
+```text
+POST /tabs/{id}/handoff
+GET  /tabs/{id}/handoff
+POST /tabs/{id}/resume
+```
+
+Notes:
+
+- these routes are tab-scoped only
+- `POST /tabs/{id}/handoff` marks the tab as `paused_handoff` and records a reason
+- `GET /tabs/{id}/handoff` returns the current handoff state, or `active` when no handoff is set
+- `POST /tabs/{id}/resume` clears the handoff state and can carry resume metadata for the caller
+- current behavior is advisory only: handoff state is not yet a hard block on subsequent automation requests
+- treat the current implementation as temporary coordination state, not as a security boundary
+- there is currently no dedicated CLI wrapper for handoff or resume; use the HTTP API
 
 ## Tab Locking
 
@@ -107,6 +128,8 @@ POST /actions
 POST /macro
 POST /tabs/{id}/action
 POST /tabs/{id}/actions
+POST /wait
+POST /tabs/{id}/wait
 GET  /snapshot
 GET  /tabs/{id}/snapshot
 GET  /text
@@ -125,6 +148,10 @@ Action kinds currently include:
 - `fill`
 - `press`
 - `hover`
+- `mousemove`
+- `mousedown`
+- `mouseup`
+- `mousewheel`
 - `focus`
 - `select`
 - `scroll`
@@ -143,6 +170,10 @@ Action targeting fields:
 - `selector`
 - `nodeId`
 - `x` and `y`
+- `button`
+- `wheelDeltaX` and `wheelDeltaY`
+- `waitNav`
+- `dialogAction` and `dialogText`
 
 Snapshot query parameters:
 

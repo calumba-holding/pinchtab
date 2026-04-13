@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import type { TooltipContentProps } from "recharts";
+import type { TooltipContentProps, TooltipProps } from "recharts";
 import type {
   TabDataPoint,
   MemoryDataPoint,
@@ -268,9 +268,9 @@ export default function TabsChart({
     return vals;
   }, [mergedData, instances, instanceColors]);
 
-  const tooltipContent = ((props: TooltipContentProps<number, string>) => (
-    <GlassTooltip {...props} instances={instances} />
-  )) as any;
+  const tooltipContent: NonNullable<TooltipProps<number, string>["content"]> = (
+    props: TooltipContentProps<number, string>,
+  ) => <GlassTooltip {...props} instances={instances} />;
 
   if (mergedData.length < 2) {
     return (

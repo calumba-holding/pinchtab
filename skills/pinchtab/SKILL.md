@@ -208,6 +208,10 @@ pinchtab click <selector>                           # Click element
 pinchtab click --wait-nav <selector>                # Click and wait for navigation
 pinchtab click --x 100 --y 200                      # Click by coordinates
 pinchtab dblclick <selector>                        # Double-click element
+pinchtab mouse move <selector>                      # Move pointer to element center or coordinates
+pinchtab mouse down <selector> --button left        # Press a mouse button
+pinchtab mouse up <selector> --button left          # Release a mouse button
+pinchtab mouse wheel <selector> --wheel-delta-y 240 # Dispatch wheel deltas
 pinchtab type <selector> <text>                     # Type with keystrokes
 pinchtab fill <selector> <text>                     # Set value directly
 pinchtab press <key>                                # Press key (Enter, Tab, Escape...)
@@ -221,6 +225,7 @@ Rules:
 - Prefer `fill` for deterministic form entry.
 - Prefer `type` only when the site depends on keystroke events.
 - Prefer `click --wait-nav` when a click is expected to navigate.
+- Prefer low-level `mouse` commands only when normal `click` / `hover` abstractions are insufficient, such as drag handles, canvas widgets, or sites that depend on exact pointer sequences.
 - Re-snapshot immediately after `click`, `press Enter`, `select`, or `scroll` if the UI can change.
 - To discover valid dropdown values, snapshot with `filter=interactive` first — the output shows `<option>` elements with their `value` attributes. Then use `select` with the exact value.
 - If a click opens a JS dialog (`alert`, `confirm`, `prompt`), pass `"dialogAction": "accept"` or `"dialogAction": "dismiss"` on the click action body. The dialog is auto-handled in a single call. Without this, the click hangs until `/tabs/TAB_ID/dialog` is called from a parallel request, and a pending dialog wedges subsequent `/snapshot` and `/text` calls.
@@ -314,6 +319,12 @@ curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#submit-btn"}'
 
+# Low-level pointer action on a specific tab
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mousewheel","x":400,"y":320,"wheelDeltaY":240}'
+
 # Navigate back/forward in a specific tab
 curl -X POST http://localhost:9867/tabs/TAB_ID/back \
   -H "Authorization: Bearer <token>"
@@ -333,6 +344,23 @@ curl http://localhost:9867/tabs/TAB_ID/pdf \
 # Close a tab
 curl -X POST http://localhost:9867/tabs/TAB_ID/close \
   -H "Authorization: Bearer <token>"
+
+# Pause automation for a human-only step
+curl -X POST http://localhost:9867/tabs/TAB_ID/handoff \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"captcha","timeoutMs":120000}'
+
+# Inspect handoff status
+curl http://localhost:9867/tabs/TAB_ID/handoff \
+  -H "Authorization: Bearer <token>"
+
+# Resume automation after the human step is done
+curl -X POST http://localhost:9867/tabs/TAB_ID/resume \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"completed"}'
+
 ```
 
 The default (non-tab-scoped) endpoints also support screenshots and PDF:
@@ -355,7 +383,7 @@ curl http://localhost:9867/pdf \
 {"kind": "click", "selector": "#search-btn", "waitNav": true}
 ```
 
-All tab-scoped routes follow the pattern `/tabs/{TAB_ID}/...` and mirror the default endpoints. The full list includes: `navigate`, `back`, `forward`, `reload`, `snapshot`, `screenshot`, `text`, `pdf`, `action`, `actions`, `dialog`, `wait`, `find`, `lock`, `unlock`, `cookies`, `metrics`, `network`, `solve`, `close`, `storage`, `evaluate`, `download`, `upload`.
+All tab-scoped routes follow the pattern `/tabs/{TAB_ID}/...` and mirror the default endpoints. The full list includes: `navigate`, `back`, `forward`, `reload`, `snapshot`, `screenshot`, `text`, `pdf`, `action`, `actions`, `dialog`, `wait`, `find`, `lock`, `unlock`, `cookies`, `metrics`, `network`, `solve`, `close`, `storage`, `evaluate`, `download`, `upload`, `handoff`, and `resume`.
 
 ## Common Patterns
 
@@ -432,5 +460,3 @@ pinchtab click "xpath://button[@type='submit']"
 - Profiles: [profiles.md](./references/profiles.md)
 - MCP: [mcp.md](./references/mcp.md)
 - Security model: [TRUST.md](./TRUST.md)
-
-

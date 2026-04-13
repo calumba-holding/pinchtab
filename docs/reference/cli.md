@@ -92,6 +92,10 @@ Common commands:
 | `pinchtab quick <url>` | Navigate and snapshot |
 | `pinchtab snap` | Accessibility snapshot |
 | `pinchtab click <selector>` | Click an element |
+| `pinchtab mouse move <selector>` | Move the pointer to an element or coordinates |
+| `pinchtab mouse down <selector>` | Press a mouse button |
+| `pinchtab mouse up <selector>` | Release a mouse button |
+| `pinchtab mouse wheel <selector>` | Dispatch wheel deltas at an element or coordinates |
 | `pinchtab type <selector> <text>` | Type via key events |
 | `pinchtab fill <selector> <text>` | Fill directly |
 | `pinchtab text` | Extract page text |
@@ -104,6 +108,20 @@ Common commands:
 | `pinchtab errors` | Show browser error logs |
 
 Many browser commands accept `--tab <id>` to target an existing tab instead of the active one.
+
+Manual handoff is currently API-only:
+
+This is currently advisory state only. It marks the tab as `paused_handoff`, but it does not yet provide a guaranteed blocking pause for later automation.
+
+```bash
+curl -X POST http://localhost:9867/tabs/<tabId>/handoff \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"captcha"}'
+curl http://localhost:9867/tabs/<tabId>/handoff
+curl -X POST http://localhost:9867/tabs/<tabId>/resume \
+  -H "Content-Type: application/json" \
+  -d '{"status":"completed"}'
+```
 
 ## Tab Command
 
