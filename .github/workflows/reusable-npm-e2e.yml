@@ -18,9 +18,9 @@ permissions:
   contents: read
 
 jobs:
-  npm-cli-macos-amd64:
+  npm-cli-macos:
     name: ${{ inputs.summary_title }}
-    runs-on: macos-13
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -55,7 +55,7 @@ jobs:
         working-directory: npm
         run: npm pack
 
-      - name: Run npm CLI E2E on macOS amd64
+      - name: Run npm CLI E2E on macOS
         working-directory: npm
         run: |
           chmod +x scripts/npm-cli-e2e.sh
