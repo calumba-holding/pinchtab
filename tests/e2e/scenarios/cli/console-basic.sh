@@ -63,7 +63,7 @@ end_test
 start_test "pinchtab console --tab <tabId>"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
-TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId')
+TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok console --tab "$TAB_ID"
 

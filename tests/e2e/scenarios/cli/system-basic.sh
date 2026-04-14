@@ -247,7 +247,7 @@ end_test
 start_test "pinchtab activity"
 
 pt_ok nav "${FIXTURES_URL}/buttons.html"
-TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId')
+TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok snap --tab "$TAB_ID"
 assert_output_json "snapshot output is valid JSON"

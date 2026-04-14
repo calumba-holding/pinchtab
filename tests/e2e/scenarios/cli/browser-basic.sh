@@ -35,9 +35,7 @@ end_test
 start_test "pinchtab nav <url>"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
-assert_output_json
-assert_output_contains "tabId" "returns tab ID"
-assert_output_contains "title" "returns page title"
+assert_tab_id "returns tab ID"
 
 end_test
 
@@ -66,9 +64,19 @@ end_test
 start_test "pinchtab nav --tab <tabId> <url>"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
-TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId')
+TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok nav "${FIXTURES_URL}/form.html" --tab "$TAB_ID"
+# nav emits bare tab ID on piped stdout; verify --tab reused the same tab.
+if [ "$(echo "$PT_OUT" | tr -d '[:space:]')" = "$TAB_ID" ]; then
+  echo -e "  ${GREEN}✓${NC} navigated in same tab"
+  ((ASSERTIONS_PASSED++)) || true
+else
+  echo -e "  ${RED}✗${NC} expected tab $TAB_ID, got $PT_OUT"
+  ((ASSERTIONS_FAILED++)) || true
+fi
+# Follow up with a tab-scoped eval to confirm the URL actually changed.
+pt_ok eval "location.pathname" --tab "$TAB_ID"
 assert_output_contains "form.html" "navigated to form.html"
 
 end_test
@@ -115,7 +123,7 @@ end_test
 start_test "pinchtab eval --tab <tabId> <expression>"
 
 pt_ok nav "${FIXTURES_URL}/buttons.html"
-TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId')
+TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok eval "document.title" --tab "$TAB_ID"
 assert_output_contains "Button" "evaluates in correct tab"

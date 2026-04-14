@@ -19,7 +19,7 @@ end_test
 start_test "pinchtab tab close <id>"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
-TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId')
+TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok tab close "$TAB_ID"
 
@@ -79,7 +79,7 @@ end_test
 start_test "pinchtab tab close <id> (close by tab ID)"
 
 pt nav "${FIXTURES_URL}/form.html"
-CLOSE_ID=$(echo "$PT_OUT" | jq -r '.tabId // empty')
+CLOSE_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 if [ -n "$CLOSE_ID" ] && [ "$CLOSE_ID" != "null" ]; then
   echo -e "  ${MUTED}closing tab: ${CLOSE_ID:0:12}...${NC}"

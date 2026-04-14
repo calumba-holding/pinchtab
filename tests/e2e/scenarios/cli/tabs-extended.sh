@@ -18,11 +18,9 @@ end_test
 start_test "pinchtab back (navigate two pages then back)"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
-TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId')
-URL_A=$(echo "$PT_OUT" | jq -r '.url')
+TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok nav "${FIXTURES_URL}/form.html" --tab "$TAB_ID"
-URL_B=$(echo "$PT_OUT" | jq -r '.url')
 
 pt_ok back --tab "$TAB_ID"
 assert_output_json "back returns JSON"
@@ -73,8 +71,7 @@ end_test
 start_test "pinchtab tab new + close roundtrip"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
-assert_output_json
-TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId')
+TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok tab close "$TAB_ID"
 
@@ -105,7 +102,7 @@ start_test "tab eviction: open tabs up to limit"
 TAB_IDS=()
 for i in $(seq 1 $MAX_TABS); do
   pt_ok nav "${FIXTURES_URL}/index.html?t=$i"
-  TAB_IDS+=($(echo "$PT_OUT" | jq -r '.tabId'))
+  TAB_IDS+=($(echo "$PT_OUT" | tr -d '[:space:]'))
 done
 
 pt_ok tab
