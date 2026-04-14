@@ -57,16 +57,16 @@ start_test "auto-https: goto without protocol adds https://"
 
 pt goto "fixtures:80/index.html"
 
-if echo "$PT_OUT" | grep -qiE "chrome-error|err_|error|refused|failed|ssl"; then
-  echo -e "  ${GREEN}✓${NC} CLI added https:// prefix (Chrome shows error page)"
-  ((ASSERTIONS_PASSED++)) || true
-elif [ "$PT_CODE" -ne 0 ]; then
+# goto emits bare tab ID on piped stdout, so inspect the resolved URL via
+# a follow-up snap. CLI adding https:// means Chrome either loads an
+# https page or shows an error page (chrome-error://) — both are fine.
+if [ "$PT_CODE" -ne 0 ]; then
   echo -e "  ${GREEN}✓${NC} CLI added https:// prefix (navigation failed as expected)"
   ((ASSERTIONS_PASSED++)) || true
 else
-  # Check if the URL in response starts with https://
-  if echo "$PT_OUT" | grep -q '"url".*https://'; then
-    echo -e "  ${GREEN}✓${NC} CLI added https:// prefix (URL in response shows https)"
+  pt_ok snap
+  if echo "$PT_OUT" | grep -qiE 'https://|chrome-error'; then
+    echo -e "  ${GREEN}✓${NC} CLI added https:// prefix (snap URL shows https or chrome-error)"
     ((ASSERTIONS_PASSED++)) || true
   else
     echo -e "  ${RED}✗${NC} Expected https:// URL or error, got: $PT_OUT"
@@ -80,8 +80,9 @@ end_test
 start_test "auto-https: explicit http:// is preserved"
 
 pt_ok goto "http://fixtures:80/index.html"
-
-if echo "$PT_OUT" | grep -q '"url".*http://'; then
+# goto emits bare tab ID; inspect the resolved URL via snap.
+pt_ok snap
+if echo "$PT_OUT" | grep -q 'http://fixtures'; then
   echo -e "  ${GREEN}✓${NC} Response URL is http://"
   ((ASSERTIONS_PASSED++)) || true
 else
@@ -96,15 +97,18 @@ start_test "auto-https: explicit https:// is preserved"
 
 pt goto "https://fixtures:80/index.html"
 
-if echo "$PT_OUT" | grep -qiE "chrome-error|err_|error|refused|failed"; then
-  echo -e "  ${GREEN}✓${NC} Explicit https:// preserved (Chrome shows error)"
-  ((ASSERTIONS_PASSED++)) || true
-elif echo "$PT_OUT" | grep -q '"url".*https://'; then
-  echo -e "  ${GREEN}✓${NC} Explicit https:// preserved (URL shows https)"
+if [ "$PT_CODE" -ne 0 ]; then
+  echo -e "  ${GREEN}✓${NC} Explicit https:// preserved (navigation failed as expected)"
   ((ASSERTIONS_PASSED++)) || true
 else
-  echo -e "  ${RED}✗${NC} Expected https:// URL or error, got: $PT_OUT"
-  ((ASSERTIONS_FAILED++)) || true
+  pt_ok snap
+  if echo "$PT_OUT" | grep -qiE 'https://fixtures|chrome-error'; then
+    echo -e "  ${GREEN}✓${NC} Explicit https:// preserved (snap URL shows https or chrome-error)"
+    ((ASSERTIONS_PASSED++)) || true
+  else
+    echo -e "  ${RED}✗${NC} Expected https:// URL or error, got: $PT_OUT"
+    ((ASSERTIONS_FAILED++)) || true
+  fi
 fi
 
 end_test
@@ -244,8 +248,7 @@ end_test
 start_test "pinchtab nav <url>"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
-assert_output_json
-assert_output_contains "tabId" "returns tab ID"
+assert_tab_id "returns tab ID"
 
 end_test
 
@@ -253,8 +256,7 @@ end_test
 start_test "pinchtab nav --new-tab <url>"
 
 pt_ok nav --new-tab "${FIXTURES_URL}/form.html"
-assert_output_json
-assert_output_contains "tabId" "opens in new tab"
+assert_tab_id "opens in new tab"
 
 end_test
 
@@ -262,8 +264,7 @@ end_test
 start_test "pinchtab goto <url> (alias for nav)"
 
 pt_ok goto "${FIXTURES_URL}/index.html"
-assert_output_json
-assert_output_contains "tabId" "goto works as alias"
+assert_tab_id "goto works as alias"
 
 end_test
 
@@ -271,7 +272,6 @@ end_test
 start_test "pinchtab navigate <url> (alias for nav)"
 
 pt_ok navigate "${FIXTURES_URL}/index.html"
-assert_output_json
-assert_output_contains "tabId" "navigate works as alias"
+assert_tab_id "navigate works as alias"
 
 end_test
