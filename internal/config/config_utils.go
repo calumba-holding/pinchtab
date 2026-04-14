@@ -24,9 +24,9 @@ func userConfigDir() string {
 	home := homeDir()
 	legacyPath := filepath.Join(home, ".pinchtab")
 
-	// On macOS, keep config and state rooted in ~/.pinchtab so the CLI,
-	// npm-managed binary, and config path all resolve to the same location.
-	if runtime.GOOS == "darwin" {
+	// On macOS and Linux, keep config and state rooted in ~/.pinchtab so the
+	// CLI, npm-managed binary, and config path all resolve to the same location.
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
 		return legacyPath
 	}
 
@@ -35,29 +35,7 @@ func userConfigDir() string {
 		return legacyPath
 	}
 
-	newPath := filepath.Join(configDir, "pinchtab")
-
-	// Priority 1: Check for config FILE (handles case where both dirs exist
-	// but only legacy has config.json — the issue #224 scenario)
-	legacyConfig := filepath.Join(legacyPath, "config.json")
-	newConfig := filepath.Join(newPath, "config.json")
-
-	if fileExists(legacyConfig) && !fileExists(newConfig) {
-		return legacyPath
-	}
-
-	// Priority 2: Check for DIRECTORY (handles init scenario where
-	// legacy dir exists from npm install but no config yet)
-	if dirExists(legacyPath) && !dirExists(newPath) {
-		return legacyPath
-	}
-
-	return newPath
-}
-
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
+	return filepath.Join(configDir, "pinchtab")
 }
 
 // DefaultConfigPath returns the default config file location used when
@@ -71,14 +49,6 @@ func defaultExtensionsDir(baseDir string) string {
 		baseDir = userConfigDir()
 	}
 	return filepath.Join(baseDir, "extensions")
-}
-
-func dirExists(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
 }
 
 func (c *RuntimeConfig) ListenAddr() string {
