@@ -293,6 +293,18 @@ Supported domain patterns are:
 
 `*` is convenient, but it defeats the main allowlist defense and should be avoided unless you are deliberately disabling domain restriction.
 
+If you need to widen trust for only one managed browser, prefer an instance-scoped override instead of changing the global server policy. `POST /instances/start`, `POST /instances/launch`, and `POST /profiles/{id}/start` accept:
+
+```json
+{
+  "securityPolicy": {
+    "allowedDomains": ["*"]
+  }
+}
+```
+
+That override is additive for that instance only. For example, you can keep the server baseline local-only and start one temporary instance with `allowedDomains: ["*"]` or a narrow extra host list such as `["wikipedia.org"]` without widening the rest of the server.
+
 ## Recommended Config
 
 For a secure local setup:

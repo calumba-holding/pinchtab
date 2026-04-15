@@ -30,7 +30,10 @@ Response shape:
     "profileName": "instance-1741410000000",
     "port": "9999",
     "headless": false,
-    "status": "running"
+    "status": "running",
+    "securityPolicy": {
+      "allowedDomains": ["127.0.0.1", "localhost", "::1", "wikipedia.org"]
+    }
   }
 ]
 ```
@@ -46,9 +49,9 @@ Use `/instances/start` when you want to start by profile ID or profile name, or 
 ```bash
 curl -X POST http://localhost:9867/instances/start \
   -H "Content-Type: application/json" \
-  -d '{"profileId":"prof_278be873","mode":"headed","port":"9999"}'
+  -d '{"profileId":"prof_278be873","mode":"headed","port":"9999","securityPolicy":{"allowedDomains":["wikipedia.org","wikimedia.org"]}}'
 # CLI Alternative
-pinchtab instance start --profile prof_278be873 --mode headed --port 9999
+pinchtab instance start --profile prof_278be873 --mode headed --port 9999 --allow-domain wikipedia.org --allow-domain wikimedia.org
 ```
 
 Request body:
@@ -56,12 +59,15 @@ Request body:
 - `profileId`: optional; accepts a profile ID or an existing profile name
 - `mode`: optional; use `headed` for a visible browser, anything else is treated as headless
 - `port`: optional
+- `securityPolicy.allowedDomains`: optional additive instance-scoped IDPI/domain allowlist entries
 
 Notes:
 
 - if `profileId` is omitted, PinchTab creates an auto-generated temporary profile
 - if `port` is omitted, PinchTab allocates one from the configured instance port range
 - the CLI flag is `--profile`, even though the API field is `profileId`
+- `securityPolicy.allowedDomains` is merged with the server-level `security.allowedDomains` baseline for that instance only
+- you can widen a single instance without changing the server default. For example, `{"securityPolicy":{"allowedDomains":["*"]}}` makes that instance unrestricted while other instances still use the server baseline
 - request-supplied extension paths are rejected; configure `browser.extensionPaths` on the server instead. By default, PinchTab uses the local `extensions/` directory under its state/config folder.
 
 ### `POST /instances/launch`
@@ -71,7 +77,7 @@ Notes:
 ```bash
 curl -X POST http://localhost:9867/instances/launch \
   -H "Content-Type: application/json" \
-  -d '{"profileId":"prof_278be873","mode":"headed"}'
+  -d '{"profileId":"prof_278be873","mode":"headed","securityPolicy":{"allowedDomains":["wikipedia.org"]}}'
 ```
 
 Request body:
@@ -79,6 +85,7 @@ Request body:
 - `profileId`: optional existing profile ID or existing profile name
 - `mode`: optional; `headed` or headless by default
 - `port`: optional
+- `securityPolicy.allowedDomains`: optional additive instance-scoped IDPI/domain allowlist entries
 
 Important:
 
@@ -127,7 +134,7 @@ You can also start an instance from a profile-oriented route:
 ```bash
 curl -X POST http://localhost:9867/profiles/prof_278be873/start \
   -H "Content-Type: application/json" \
-  -d '{"headless":false,"port":"9999"}'
+  -d '{"headless":false,"port":"9999","securityPolicy":{"allowedDomains":["wikipedia.org"]}}'
 ```
 
 This route accepts a profile ID or profile name in the path. Unlike `/instances/start` and `/instances/launch`, its request body uses `headless` instead of `mode`.

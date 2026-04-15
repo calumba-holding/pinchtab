@@ -86,6 +86,13 @@ type InstanceInternal struct {
 	cdpPort   int
 	cmd       Cmd
 	logBuf    *ringBuffer
+
+	requestedSecurityPolicy *bridge.SecurityPolicy
+}
+
+type LaunchOptions struct {
+	ExtensionPaths []string
+	SecurityPolicy *bridge.SecurityPolicy
 }
 
 func NewOrchestrator(baseDir string) *Orchestrator {
@@ -245,6 +252,12 @@ func installStableBinary(src, dst string) error {
 }
 
 func (o *Orchestrator) Launch(name, port string, headless bool, extensionPaths []string) (*bridge.Instance, error) {
+	return o.LaunchWithOptions(name, port, headless, LaunchOptions{
+		ExtensionPaths: extensionPaths,
+	})
+}
+
+func (o *Orchestrator) LaunchWithOptions(name, port string, headless bool, opts LaunchOptions) (*bridge.Instance, error) {
 	// Validate profile name to prevent path traversal attacks
 	if err := profiles.ValidateProfileName(name); err != nil {
 		return nil, err
@@ -331,7 +344,10 @@ func (o *Orchestrator) Launch(name, port string, headless bool, extensionPaths [
 		return nil, fmt.Errorf("create state dir: %w", err)
 	}
 
-	childConfigPath, err := o.writeChildConfig(port, cdpPort, profilePath, instanceStateDir, headless, extensionPaths)
+	requestedPolicy := cloneSecurityPolicy(opts.SecurityPolicy)
+	effectivePolicy := effectiveSecurityPolicy(o.runtimeCfg, requestedPolicy)
+
+	childConfigPath, err := o.writeChildConfig(port, cdpPort, profilePath, instanceStateDir, headless, opts.ExtensionPaths, effectivePolicy)
 	if err != nil {
 		return nil, fmt.Errorf("write child config: %w", err)
 	}
@@ -352,19 +368,22 @@ func (o *Orchestrator) Launch(name, port string, headless bool, extensionPaths [
 
 	inst := &InstanceInternal{
 		Instance: bridge.Instance{
-			ID:          instanceID,
-			ProfileID:   profileID,
-			ProfileName: name,
-			Port:        port,
-			URL:         o.childInstanceBaseURL(port),
-			Headless:    headless,
-			Status:      "starting",
-			StartTime:   time.Now(),
+			ID:             instanceID,
+			ProfileID:      profileID,
+			ProfileName:    name,
+			Port:           port,
+			URL:            o.childInstanceBaseURL(port),
+			Headless:       headless,
+			Status:         "starting",
+			StartTime:      time.Now(),
+			SecurityPolicy: effectivePolicy,
 		},
 		URL:     o.childInstanceBaseURL(port),
 		cdpPort: cdpPort,
 		cmd:     cmd,
 		logBuf:  logBuf,
+
+		requestedSecurityPolicy: requestedPolicy,
 	}
 
 	o.mu.Lock()
@@ -399,7 +418,7 @@ func portConflictError(port string, inspection PortInspection) error {
 	return fmt.Errorf("instance port %s is already in use on this machine", port)
 }
 
-func (o *Orchestrator) writeChildConfig(port string, cdpPort int, profilePath, instanceStateDir string, headless bool, extensionPaths []string) (string, error) {
+func (o *Orchestrator) writeChildConfig(port string, cdpPort int, profilePath, instanceStateDir string, headless bool, extensionPaths []string, securityPolicy *bridge.SecurityPolicy) (string, error) {
 	fc := config.FileConfigFromRuntime(o.runtimeCfg)
 	fc.Server.Port = port
 	fc.Server.StateDir = instanceStateDir
@@ -412,6 +431,9 @@ func (o *Orchestrator) writeChildConfig(port string, cdpPort int, profilePath, i
 		fc.InstanceDefaults.Mode = "headless"
 	} else {
 		fc.InstanceDefaults.Mode = "headed"
+	}
+	if securityPolicy != nil {
+		fc.Security.AllowedDomains = append([]string(nil), securityPolicy.AllowedDomains...)
 	}
 
 	if len(extensionPaths) > 0 {
@@ -441,6 +463,51 @@ func (o *Orchestrator) writeChildConfig(port string, cdpPort int, profilePath, i
 		return "", err
 	}
 	return configPath, nil
+}
+
+func effectiveSecurityPolicy(cfg *config.RuntimeConfig, requested *bridge.SecurityPolicy) *bridge.SecurityPolicy {
+	var merged []string
+	if cfg != nil {
+		merged = mergeAllowedDomains(merged, cfg.AllowedDomains)
+	}
+	if requested != nil {
+		merged = mergeAllowedDomains(merged, requested.AllowedDomains)
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	return &bridge.SecurityPolicy{AllowedDomains: merged}
+}
+
+func cloneSecurityPolicy(policy *bridge.SecurityPolicy) *bridge.SecurityPolicy {
+	if policy == nil {
+		return nil
+	}
+	return &bridge.SecurityPolicy{
+		AllowedDomains: append([]string(nil), policy.AllowedDomains...),
+	}
+}
+
+func mergeAllowedDomains(base []string, extras []string) []string {
+	seen := make(map[string]bool, len(base)+len(extras))
+	out := make([]string, 0, len(base)+len(extras))
+	for _, domain := range base {
+		trimmed := strings.TrimSpace(domain)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		out = append(out, trimmed)
+	}
+	for _, domain := range extras {
+		trimmed := strings.TrimSpace(domain)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		out = append(out, trimmed)
+	}
+	return out
 }
 
 func intPtr(v int) *int {

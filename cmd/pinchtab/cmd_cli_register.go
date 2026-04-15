@@ -274,6 +274,7 @@ func configureManagementFlags() {
 	startInstanceCmd.Flags().String("mode", "", "Instance mode")
 	startInstanceCmd.Flags().String("port", "", "Port number")
 	startInstanceCmd.Flags().StringArray("extension", nil, "Load browser extension (repeatable)")
+	startInstanceCmd.Flags().StringArray("allow-domain", nil, "Add an instance-scoped IDPI allowed domain (repeatable)")
 
 	activityCmd.PersistentFlags().Int("limit", 200, "Maximum number of events to return")
 	activityCmd.PersistentFlags().Int("age-sec", 0, "Only include events from the last N seconds")

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/pinchtab/pinchtab/internal/bridge"
+	"github.com/pinchtab/pinchtab/internal/config"
 	"github.com/pinchtab/pinchtab/internal/profiles"
 )
 
@@ -95,5 +97,84 @@ func TestHandleLaunchByNameRejectsExtensionPaths(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "extensionPaths are not supported on instance start requests") {
 		t.Fatalf("body = %q, want extensionPaths rejection message", w.Body.String())
+	}
+}
+
+func TestHandleStartInstance_AppliesSecurityPolicyOverride(t *testing.T) {
+	old := processAliveFunc
+	processAliveFunc = func(pid int) bool { return pid > 0 }
+	defer func() { processAliveFunc = old }()
+	stubPortAvailability(t, func(int) bool { return true })
+
+	runner := &mockRunner{portAvail: true}
+	o := NewOrchestratorWithRunner(t.TempDir(), runner)
+	o.ApplyRuntimeConfig(&config.RuntimeConfig{
+		AllowedDomains: []string{"127.0.0.1", "localhost"},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/instances/start", strings.NewReader(`{"mode":"headed","securityPolicy":{"allowedDomains":["wikipedia.org","localhost"]}}`))
+	w := httptest.NewRecorder()
+
+	o.handleStartInstance(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d body=%s", w.Code, http.StatusCreated, w.Body.String())
+	}
+	if !runner.runCalled {
+		t.Fatal("expected instance launch to invoke the runner")
+	}
+
+	var inst bridge.Instance
+	if err := json.NewDecoder(w.Body).Decode(&inst); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if inst.SecurityPolicy == nil {
+		t.Fatal("expected securityPolicy on instance response")
+	}
+	want := []string{"127.0.0.1", "localhost", "wikipedia.org"}
+	if len(inst.SecurityPolicy.AllowedDomains) != len(want) {
+		t.Fatalf("securityPolicy.allowedDomains = %v, want %v", inst.SecurityPolicy.AllowedDomains, want)
+	}
+	for i := range want {
+		if inst.SecurityPolicy.AllowedDomains[i] != want[i] {
+			t.Fatalf("securityPolicy.allowedDomains = %v, want %v", inst.SecurityPolicy.AllowedDomains, want)
+		}
+	}
+
+	cfgPath := envMap(runner.env)["PINCHTAB_CONFIG"]
+	if cfgPath == "" {
+		t.Fatal("PINCHTAB_CONFIG missing from child env")
+	}
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("read child config: %v", err)
+	}
+	var childCfg config.FileConfig
+	if err := json.Unmarshal(data, &childCfg); err != nil {
+		t.Fatalf("decode child config: %v", err)
+	}
+	if len(childCfg.Security.AllowedDomains) != len(want) {
+		t.Fatalf("child security.allowedDomains = %v, want %v", childCfg.Security.AllowedDomains, want)
+	}
+	for i := range want {
+		if childCfg.Security.AllowedDomains[i] != want[i] {
+			t.Fatalf("child security.allowedDomains = %v, want %v", childCfg.Security.AllowedDomains, want)
+		}
+	}
+}
+
+func TestHandleStartInstance_RejectsInvalidSecurityPolicyOverride(t *testing.T) {
+	o := NewOrchestratorWithRunner(t.TempDir(), &mockRunner{portAvail: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/instances/start", strings.NewReader(`{"securityPolicy":{"allowedDomains":["bad domain"]}}`))
+	w := httptest.NewRecorder()
+
+	o.handleStartInstance(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", w.Code, http.StatusBadRequest, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "invalid securityPolicy.allowedDomains") {
+		t.Fatalf("body = %q, want securityPolicy validation message", w.Body.String())
 	}
 }

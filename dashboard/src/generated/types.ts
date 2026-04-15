@@ -30,6 +30,9 @@ export interface Profile {
   useWhen?: string;
   description?: string;
 }
+export interface SecurityPolicy {
+  allowedDomains?: string[];
+}
 /**
  * Instance represents a running browser instance.
  * Matches internal/bridge/api.go Instance
@@ -47,6 +50,7 @@ export interface Instance {
   attached: boolean; // True if attached rather than locally launched
   attachType?: string;
   cdpUrl?: string; // CDP WebSocket URL (for CDP-attached instances)
+  securityPolicy?: SecurityPolicy;
 }
 /**
  * Agent represents a connected AI agent.
