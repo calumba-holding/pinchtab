@@ -53,11 +53,18 @@ func FillByNodeID(ctx context.Context, nodeID int64, value string) error {
 }
 
 // SelectByNodeID sets the value of a <select> element, with a forgiving
-// lookup: if the raw input doesn't match any option's `value` attribute, the
-// function falls back to an exact (trimmed) match against each option's
-// visible text, and then to a case-insensitive trimmed text match. This lets
-// callers pass whatever they see in a snapshot (`"United Kingdom"`) instead
-// of having to look up the underlying `value` attr (`"uk"`).
+// lookup. Strategies are tried in order; the first match wins:
+//
+//  1. Exact `<option value="...">` attribute.
+//  2. Exact (trimmed) visible text.
+//  3. Case-insensitive trimmed visible text.
+//  4. Case-insensitive substring of visible text (last resort).
+//
+// This lets callers pass whatever they have — the canonical `value` attr
+// ("uk"), the visible text they see in a snapshot ("United Kingdom"), or an
+// obvious shorthand ("Dark" → "Dark Mode"). The substring strategy is
+// deliberately permissive; if multiple options share a prefix the first one
+// in document order wins, so prefer exact forms when disambiguation matters.
 //
 // When the element isn't a <select> (no `.options` collection), behavior
 // degrades to the original "set .value directly" path — preserves backward
@@ -116,6 +123,15 @@ func SelectByNodeID(ctx context.Context, nodeID int64, value string) error {
 				if (!match) {
 					for (var i = 0; i < opts.length; i++) {
 						if ((opts[i].text || "").trim().toLowerCase() === lower) { match = opts[i]; matchedBy = "text-ci"; break; }
+					}
+				}
+				// 4. Case-insensitive substring of visible text (last resort).
+				//    First match wins, so the user should prefer exact forms
+				//    when options share a common prefix. This rescues natural
+				//    shorthand like "Dark" matching the option "Dark Mode".
+				if (!match && lower.length > 0) {
+					for (var i = 0; i < opts.length; i++) {
+						if ((opts[i].text || "").trim().toLowerCase().indexOf(lower) !== -1) { match = opts[i]; matchedBy = "text-contains"; break; }
 					}
 				}
 				if (!match) {

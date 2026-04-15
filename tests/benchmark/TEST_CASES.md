@@ -1,6 +1,6 @@
 # PinchTab Benchmark Test Cases
 
-58 test cases covering realistic browser automation scenarios against local fixture pages.
+85 test cases covering realistic browser automation scenarios against local fixture pages.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -85,3 +85,46 @@
 | **Group 22: Mouse Drag & Drop** | | |
 | 22.1 | Drag into Zone A | Use high-level `drag` action to move piece into Zone A |
 | 22.2 | Low-level drag sequence | Use `mouse-down`/`mouse-move`/`mouse-up` to visit Zone B then C; verify ordered drop sequence |
+| **Group 23: Async / Loading state** | | |
+| 23.1 | Wait for async content | Page shows spinner for 1.5 s, then replaces it with the final marker |
+| **Group 24: Keyboard events** | | |
+| 24.1 | Press Escape | Verify `KEYBOARD_ESCAPE_PRESSED` marker after `press Escape` |
+| 24.2 | Sequential keys | Press `a` then `Enter`, verify both markers accumulate in log |
+| **Group 25: Tab panels** | | |
+| 25.1 | Switch to Settings tab | Click Settings tab, verify `TAB_SETTINGS_CONTENT` replaces Profile content |
+| 25.2 | Switch to Billing tab | Click Billing tab, verify `TAB_BILLING_CONTENT` |
+| **Group 26: Accordion** | | |
+| 26.1 | Open section A | Click Section A header, verify `ACCORDION_SECTION_A_OPEN` |
+| 26.2 | Open section B | Click Section B header, verify B marker + Section A `aria-expanded=false` |
+| **Group 27: Contenteditable editor** | | |
+| 27.1 | Type into editor | `type` "Hello rich text" into `#editor`, verify char count + mirror |
+| 27.2 | Commit with Enter | Press Enter (intercepted), verify `EDITOR_COMMITTED=...` |
+| **Group 28: Range slider** | | |
+| 28.1 | Set slider to HIGH | `fill #volume 90`, verify value + bucket markers |
+| 28.2 | Set slider to LOW | `fill #volume 10`, verify value + bucket markers |
+| **Group 29: Pagination** | | |
+| 29.1 | Advance to page 2 | Click Next, verify `PAGE_2_FIRST_ITEM` and `PAGE_2_OF_3` |
+| 29.2 | Last page; Next disabled | Click Next, verify page-3 markers + `disabled=true` |
+| **Group 30: Custom dropdown menu** | | |
+| 30.1 | Pick Beta | Click toggle, click data-value=beta, verify selection marker |
+| 30.2 | Reopen + pick Gamma | Click toggle again, click Gamma, verify selection marker |
+| **Group 31: Nested iframes (3 levels)** | | |
+| 31.1 | Click deepest-frame button | `frame #level-2` → `frame #level-3` → click `#deep-button`; verify `DEEP_CLICKED=YES_LEVEL_3` |
+| **Group 32: Dynamic iframe** | | |
+| 32.1 | Wait for late iframe | `wait --text IFRAME_DYNAMIC_ATTACHED` → scope in → fill/click → verify result marker |
+| **Group 33: srcdoc iframe** | | |
+| 33.1 | Inline iframe content | scope `#srcdoc-frame` → fill/click inline form → verify `INLINE_RECEIVED_SRCDOC` |
+| **Group 34: Sandboxed iframe** | | |
+| 34.1 | Click in sandboxed frame | `sandbox="allow-scripts allow-same-origin"`; scope + click → verify `SANDBOX_CLICKED=YES` |
+| **Group 35: Long-form article** | | |
+| 35.1 | Default Readability mode keeps body | Verify date + word-count markers via default `text` |
+| 35.2 | `--full` keeps the chrome | Verify footer marker only appears in `--full` output |
+| **Group 36: Search results page** | | |
+| 36.1 | Extract result #3 via scoped snapshot | `snap --selector "#r-3"`; verify title + snippet markers |
+| 36.2 | All six results via `--full` | `text --full` contains `RESULT_1_TITLE`..`RESULT_6_TITLE` |
+| **Group 37: Q&A thread** | | |
+| 37.1 | Accepted answer id via `eval` | Query `[data-accepted="true"]` → `a-2` |
+| 37.2 | Accepted answer body | Scoped snapshot of `#a-2` contains `ANSWER_2_BODY_MARKER` |
+| **Group 38: Pricing table** | | |
+| 38.1 | Pro plan via scoped snapshot | `#plan-pro` contains `PLAN_PRO_PRICE_29` |
+| 38.2 | All 3 plans via `--full` | Output contains all three plan-price markers |

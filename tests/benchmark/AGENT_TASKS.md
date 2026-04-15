@@ -7,7 +7,11 @@ Natural language tasks to test how well an agent uses PinchTab from skill docs a
 1. Read `../../skills/pinchtab/SKILL.md` — this is your only guide
 2. For each task, figure out which commands to use
 3. **Log every command executed**
-4. Record: `./scripts/record-step.sh --type agent <group> <step> <pass|fail> --tokens <in> <out> "notes"`
+4. Do not score your own work as pass/fail unless a task is trivially objective.
+5. Prefer recording each step as `answer` with the actual response/result:
+   `./scripts/record-step.sh --type agent <group> <step> answer "<what you saw>" "notes"`
+6. A separate verification pass should later stamp the step with:
+   `./scripts/verify-step.sh --type agent <group> <step> <pass|fail|skip> "verification notes"`
 
 ### Recommended setup: env vars + `./scripts/pt` wrapper
 
@@ -40,8 +44,8 @@ export PINCHTAB_TAB=$(./scripts/pt nav http://fixtures/)
 ./scripts/pt click '#submit'
 ./scripts/pt drag '#piece' --drag-x 12 --drag-y -158
 
-# Record step results:
-./scripts/record-step.sh --type agent 1 2 pass "worked"
+# Record answer/result for later verification:
+./scripts/record-step.sh --type agent 1 2 answer "clicked submit and saw success banner" "worked"
 ```
 
 The wrapper is a ~60-line shell script; read `scripts/pt` for the exact
@@ -49,6 +53,10 @@ forwarding rules. Flags after `pt` are forwarded verbatim to `pinchtab`, so
 anything that works with `pinchtab ...` works with `./scripts/pt ...`.
 
 Explicit `--tab <id>` on any command still wins over `PINCHTAB_TAB`.
+
+For deferred verification, keep the answer payload factual. Record the
+actual page text, count, answer, or state transition you observed, not your own
+judgment about whether that matches the benchmark oracle.
 
 ## Environment
 
@@ -406,10 +414,10 @@ Navigate to `http://fixtures/iframe.html` and extract content from inside the em
 
 **Verify**: The iframe's inner content includes `IFRAME_INNER_CONTENT_LOADED`.
 
-### 19.2 Type into iframe input
-Inside the same-origin iframe, fill the input with the text "Hello World" and click the Save button. If using selectors, set frame scope first.
+### 19.2 Type into iframe input (native frame scope)
+Use `pinchtab frame '#content-frame'` to scope into the iframe, then `fill` the input with "Hello World" and `click` the Save button. Verify via a scoped `snap` — `text --full` doesn't pierce iframes. Reset with `pinchtab frame main` afterwards.
 
-**Verify**: The iframe shows `IFRAME_INPUT_RECEIVED_HELLO_WORLD`.
+**Verify**: Scoped snapshot contains `IFRAME_INPUT_RECEIVED_HELLO_WORLD`.
 
 ---
 
@@ -455,6 +463,205 @@ Without reloading the page, drag the piece next into **Zone B**, and then into *
 
 ---
 
+## Group 23: Async / Loading state
+
+### 23.1 Wait for async content
+Navigate to `http://fixtures/loading.html`. The page shows a spinner and the text "Loading..." for ~1.5 seconds, then replaces it with the final payload. Wait for the final content to appear before reporting completion.
+
+**Verify**: The final snapshot contains `VERIFY_LOADING_COMPLETE_88888`.
+
+---
+
+## Group 24: Keyboard events
+
+### 24.1 Press Escape
+Navigate to `http://fixtures/keyboard.html` (it auto-focuses an input so keyboard events land). Press the Escape key.
+
+**Verify**: Page text contains `KEYBOARD_ESCAPE_PRESSED`.
+
+### 24.2 Press 'a' then Enter
+Without reloading, press the `a` key, then the `Enter` key.
+
+**Verify**: Page text now contains all three markers in order: `KEYBOARD_ESCAPE_PRESSED`, `KEYBOARD_KEY_A_PRESSED`, `KEYBOARD_ENTER_PRESSED`.
+
+---
+
+## Group 25: Tab panels
+
+### 25.1 Switch to the Settings tab
+Navigate to `http://fixtures/tabs.html`. The Profile tab is shown by default. Click the Settings tab.
+
+**Verify**: After the click, the page content includes `TAB_SETTINGS_CONTENT` (and the Profile content is no longer visible).
+
+### 25.2 Switch to the Billing tab
+Click the Billing tab.
+
+**Verify**: Page content now includes `TAB_BILLING_CONTENT`.
+
+---
+
+## Group 26: Accordion
+
+### 26.1 Open section A
+Navigate to `http://fixtures/accordion.html`. Click the header for Section A to expand it.
+
+**Verify**: Page text includes `ACCORDION_SECTION_A_OPEN`.
+
+### 26.2 Open section B
+Click the header for Section B. Because the accordion is exclusive-expand, Section A should close.
+
+**Verify**: Page text includes `ACCORDION_SECTION_B_OPEN`, and Section A's `aria-expanded` attribute is now `"false"` (use `eval` to check the attribute if needed).
+
+---
+
+## Group 27: Contenteditable editor
+
+### 27.1 Type into the rich-text editor
+Navigate to `http://fixtures/editor.html`. Type the text `Hello rich text` into the `#editor` div. `contenteditable` elements don't have `.value`, so use `type` (keyboard events), not `fill`.
+
+**Verify**: Page text contains `EDITOR_CHARS=15` and the mirror shows `Hello rich text`.
+
+### 27.2 Commit by pressing Enter
+Press Enter (the editor intercepts Enter to commit the current buffer to a separate marker).
+
+**Verify**: Page text contains `EDITOR_COMMITTED=Hello rich text`.
+
+---
+
+## Group 28: Range slider
+
+### 28.1 Move slider into HIGH bucket
+Navigate to `http://fixtures/range.html`. Set the `#volume` range slider to 90.
+
+**Verify**: Page text contains both `RANGE_VALUE_90` and `BUCKET_HIGH`.
+
+### 28.2 Move slider into LOW bucket
+Without reloading, change the slider to 10.
+
+**Verify**: Page text now contains `RANGE_VALUE_10` and `BUCKET_LOW`.
+
+---
+
+## Group 29: Pagination
+
+### 29.1 Advance to page 2
+Navigate to `http://fixtures/pagination.html`. Click the Next button.
+
+**Verify**: Page text contains `PAGE_2_FIRST_ITEM` and `PAGE_2_OF_3`.
+
+### 29.2 Reach the last page; Next disabled
+Click Next once more.
+
+**Verify**: Page text contains `PAGE_3_FIRST_ITEM` and `PAGE_3_OF_3`, and the Next button's `disabled` property is `true` (use `eval` to check).
+
+---
+
+## Group 30: Custom dropdown menu
+
+### 30.1 Pick the "Beta" item
+Navigate to `http://fixtures/dropdown.html`. The page has a custom dropdown — click the toggle button (`#dropdown-toggle`) to open the menu, then click the "Beta" item.
+
+**Verify**: Page text contains `DROPDOWN_SELECTED=BETA`.
+
+### 30.2 Reopen and pick "Gamma"
+Reopen the dropdown and select "Gamma". (Each selection auto-closes the menu, so you need to click the toggle again before selecting.)
+
+**Verify**: Page text contains `DROPDOWN_SELECTED=GAMMA`.
+
+---
+
+## Group 31: Nested iframes (3 levels deep)
+
+### 31.1 Click a button in the deepest frame
+Navigate to `http://fixtures/iframe-nested.html`. The outer page embeds `#level-2`, which in turn embeds `#level-3`, which contains `#deep-button`. Drill through the two frame hops and click the button. Verify via a scoped `snap` before resetting to `main`.
+
+**Verify**: Scoped snapshot contains `DEEP_CLICKED=YES_LEVEL_3`.
+
+---
+
+## Group 32: Dynamic iframe (inserted after load)
+
+### 32.1 Wait for a late iframe, then interact with it
+Navigate to `http://fixtures/iframe-dynamic.html`. The iframe is inserted ~1.2 s after load (use `wait --text "IFRAME_DYNAMIC_ATTACHED"`). Then scope into `#late-frame`, fill `#iframe-input` with "Late World", click `#iframe-submit`, and verify the inner result marker.
+
+**Verify**: Scoped snapshot contains `IFRAME_INPUT_RECEIVED_LATE_WORLD`.
+
+---
+
+## Group 33: srcdoc iframe
+
+### 33.1 Interact with an inline-content iframe
+Navigate to `http://fixtures/iframe-srcdoc.html`. The iframe's content is inlined via `srcdoc`; it has no `src` URL. Scope into `#srcdoc-frame`, fill `#inline-input` with `srcdoc`, click `#inline-submit`, and verify.
+
+**Verify**: Scoped snapshot contains `INLINE_RECEIVED_SRCDOC`.
+
+---
+
+## Group 34: Sandboxed iframe
+
+### 34.1 Click inside a sandboxed iframe
+Navigate to `http://fixtures/iframe-sandbox.html`. The iframe has `sandbox="allow-scripts allow-same-origin"`. Scope into `#sandboxed`, click `#sandbox-button`, and verify.
+
+**Verify**: Scoped snapshot contains `SANDBOX_CLICKED=YES`.
+
+---
+
+## Group 35: Long-form article (Medium/Substack style)
+
+### 35.1 Read the article with default `text`
+Navigate to `http://fixtures/article.html`. Extract the page's main content using the default `text` (Readability) mode. Default mode is the right choice for article-style pages.
+
+**Verify**: The extracted text contains both `ARTICLE_PUBLISHED_2026_04_15` and `ARTICLE_WORD_COUNT_MARKER_323` (both inside the article body — Readability keeps them).
+
+### 35.2 See the chrome that Readability drops
+Re-extract with `text --full` and confirm the footer is included this time.
+
+**Verify**: `--full` output contains `FOOTER_COPYRIGHT_MARKER` (which the default mode trims).
+
+---
+
+## Group 36: Search results page (SERP)
+
+### 36.1 Find a specific result by id
+Navigate to `http://fixtures/serp.html`. The page has 6 result cards (`#r-1`..`#r-6`). Extract just the third card's content. A scoped snapshot (`snap --selector "#r-3"`) is the direct path.
+
+**Verify**: The scoped output contains `RESULT_3_TITLE` and `RESULT_3_SNIPPET_MARKER`.
+
+### 36.2 Count all result cards
+Use a full text extraction to verify all six results are present in one pass.
+
+**Verify**: Output contains all of `RESULT_1_TITLE` through `RESULT_6_TITLE` and the summary `SERP_RESULT_COUNT_6`. Default Readability trims SERPs — use `text --full`.
+
+---
+
+## Group 37: Q&A thread (Stack-Overflow style)
+
+### 37.1 Find the accepted answer id
+Navigate to `http://fixtures/qa.html`. The accepted answer carries `data-accepted="true"` on its `<div>` wrapper. Use `eval` to return that element's `id`.
+
+**Verify**: The `eval` result equals `"a-2"`.
+
+### 37.2 Extract the accepted answer's body
+Scope a snapshot to `#a-2` and verify the body content.
+
+**Verify**: Scoped snapshot contains `ANSWER_2_BODY_MARKER` and `ACCEPTED_ANSWER_ID_A2`.
+
+---
+
+## Group 38: Pricing table
+
+### 38.1 Read just the Pro plan
+Navigate to `http://fixtures/pricing.html`. The page has three plan cards (`#plan-free`, `#plan-pro`, `#plan-enterprise`). Read only the Pro plan using a scoped snapshot.
+
+**Verify**: Scoped snapshot contains `PLAN_PRO_PRICE_29` and `PLAN_PRO_LIMIT_5000_requests per day`.
+
+### 38.2 Compare all three plans
+Extract the full page (pricing grids are a Readability anti-pattern — reach for `--full`).
+
+**Verify**: Output contains `PLAN_FREE_PRICE_0`, `PLAN_PRO_PRICE_29`, and `PLAN_ENTERPRISE_PRICE_CUSTOM`.
+
+---
+
 ## Summary
 
 | Group | Tasks | Description |
@@ -482,8 +689,24 @@ Without reloading the page, drag the piece next into **Zone B**, and then into *
 | 20 | 2 | Dialogs |
 | 21 | 2 | Async / awaitPromise |
 | 22 | 2 | Mouse Drag & Drop |
+| 23 | 1 | Async / Loading state |
+| 24 | 2 | Keyboard events |
+| 25 | 2 | Tab panels |
+| 26 | 2 | Accordion |
+| 27 | 2 | Contenteditable editor |
+| 28 | 2 | Range slider |
+| 29 | 2 | Pagination |
+| 30 | 2 | Custom dropdown menu |
+| 31 | 1 | Nested iframes (3 levels) |
+| 32 | 1 | Dynamic iframe |
+| 33 | 1 | srcdoc iframe |
+| 34 | 1 | Sandboxed iframe |
+| 35 | 2 | Long-form article |
+| 36 | 2 | Search results page |
+| 37 | 2 | Q&A thread |
+| 38 | 2 | Pricing table |
 
-**Total: 58 tasks**
+**Total: 85 tasks**
 
 ## Key Differences from Baseline
 

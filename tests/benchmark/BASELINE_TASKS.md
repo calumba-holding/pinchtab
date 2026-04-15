@@ -998,16 +998,38 @@ curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" 
 ```
 **Pass if**: Snapshot contains `IFRAME_INNER_CONTENT_LOADED`.
 
-### 19.2 Type into iframe input
+### 19.2 Type into iframe input (native frame scope)
 ```bash
-curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+# Scope into the same-origin iframe
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"expression":"const f=document.getElementById(\"content-frame\").contentDocument; f.getElementById(\"iframe-input\").value=\"Hello World\"; f.getElementById(\"iframe-submit\").click(); f.getElementById(\"iframe-result\").textContent;"}'
-```
-**Pass if**: Response value contains `IFRAME_INPUT_RECEIVED_HELLO_WORLD`.
+  -d '{"target":"#content-frame"}'
 
-**Note**: PinchTab's `/action` selectors don't reach inside iframes. Use `/evaluate` with `contentDocument` to interact with iframe content.
+# Selectors now resolve inside the iframe
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#iframe-input","text":"Hello World"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#iframe-submit"}'
+
+# Verify via a scoped snap (text --full doesn't pierce frames)
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+
+# Reset scope
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"main"}'
+```
+**Pass if**: The scoped snapshot contains `IFRAME_INPUT_RECEIVED_HELLO_WORLD`.
+
+**Note**: `POST /frame` sets a stateful scope on the tab. Subsequent selector-based `/action` and `/snapshot` calls resolve inside the scoped iframe. Reset with `{"target":"main"}` when done. Cross-origin iframes are not currently exposed this way — fall back to `/evaluate` + `contentDocument` for those (when same-origin policy permits).
 
 ---
 
@@ -1153,6 +1175,577 @@ curl "http://localhost:9867/tabs/TAB_ID/text" \
 
 ---
 
+## Group 23: Async / Loading state
+
+### 23.1 Wait for async content to replace a loading spinner
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/loading.html"}'
+
+# Poll the snapshot until the final marker appears, or call /wait with a text
+# predicate. Using /evaluate with awaitPromise is another valid path.
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  SNAP=$(curl -sf "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+    -H "Authorization: Bearer benchmark-token")
+  echo "$SNAP" | grep -q "VERIFY_LOADING_COMPLETE_88888" && break
+  sleep 0.3
+done
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Final snapshot contains `VERIFY_LOADING_COMPLETE_88888`.
+
+**Note**: The fixture delays replacing the spinner by ~1.5 s. Agents using
+`pinchtab wait --text "VERIFY_LOADING_COMPLETE_88888" --timeout 5000` hit
+this in a single call. Baseline callers can poll or `sleep` between
+snapshots.
+
+---
+
+## Group 24: Keyboard events
+
+### 24.1 Press Escape to emit a marker
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/keyboard.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"press","key":"Escape"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Page text contains `KEYBOARD_ESCAPE_PRESSED`. Use `mode=raw` because the log div is short enough for Readability to drop it.
+
+### 24.2 Sequential keys (a then Enter)
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"press","key":"a"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"press","key":"Enter"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Page text contains both `KEYBOARD_KEY_A_PRESSED` and `KEYBOARD_ENTER_PRESSED` (and the Escape marker from 24.1 is still there, proving the log accumulates).
+
+**Note**: `press` issues a single keypress and requires the page to already have focus on an element that listens for `keydown`. The fixture auto-focuses `#focus-input` on load.
+
+---
+
+## Group 25: Tab panels
+
+### 25.1 Switch to Settings tab
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/tabs.html"}'
+
+# Verify initial panel
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#tab-settings"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Initial response contains `TAB_PROFILE_CONTENT` AND final response contains `TAB_SETTINGS_CONTENT` (and the profile content is now hidden).
+
+### 25.2 Switch to Billing tab
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#tab-billing"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `TAB_BILLING_CONTENT`.
+
+**Note**: Tab panels toggle via the `hidden` attribute; the non-selected panels are absent from the visible text. Use `text?mode=raw` so the extraction reflects what the user actually sees.
+
+---
+
+## Group 26: Accordion
+
+### 26.1 Open section A
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/accordion.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#section-a .section-header"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `ACCORDION_SECTION_A_OPEN`.
+
+### 26.2 Open section B — A auto-closes
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#section-b .section-header"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+
+# Also verify the A body text is no longer visible by inspecting aria-expanded.
+curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"expression":"document.getElementById(\"section-a\").getAttribute(\"aria-expanded\")"}'
+```
+**Pass if**: Text response contains `ACCORDION_SECTION_B_OPEN`, AND the `evaluate` response for the section-a state returns `"false"`.
+
+**Note**: Accordion uses an exclusive-expand pattern (only one section open). CSS `max-height:0` collapses the closed bodies, but the text content is still in the DOM — confirming aria state is the most reliable check.
+
+---
+
+## Group 27: Contenteditable editor
+
+### 27.1 Type into a `contenteditable` div
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/editor.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"type","selector":"#editor","text":"Hello rich text"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `EDITOR_CHARS=15` AND the mirror echoes `Hello rich text`.
+
+### 27.2 Commit by pressing Enter
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"press","key":"Enter"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `EDITOR_COMMITTED=Hello rich text`.
+
+**Note**: `contenteditable` elements don't have a `.value` property, so `fill` won't work. Use `type` so each character is dispatched via keyboard events the browser routes into the editor. `press Enter` is intercepted (preventDefault) to commit the buffer instead of inserting a newline.
+
+---
+
+## Group 28: Range slider
+
+### 28.1 Set range slider to HIGH bucket
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/range.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#volume","text":"90"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `RANGE_VALUE_90` AND `BUCKET_HIGH`.
+
+### 28.2 Move to LOW bucket
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#volume","text":"10"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `RANGE_VALUE_10` AND `BUCKET_LOW`.
+
+**Note**: `fill` calls the native value setter, which fires both `input` and `change` events. That's enough to drive a page that listens via `addEventListener('input', ...)`. If the target only listens to pointer drag events, `drag --drag-x N` on the thumb would be needed — but most sites use `input`/`change`.
+
+---
+
+## Group 29: Pagination
+
+### 29.1 Advance to page 2
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/pagination.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#next-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `PAGE_2_FIRST_ITEM` AND `PAGE_2_OF_3` (and the page-1 marker is gone).
+
+### 29.2 Advance to last page; Next is disabled
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#next-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"expression":"document.getElementById(\"next-btn\").disabled"}'
+```
+**Pass if**: Text contains `PAGE_3_FIRST_ITEM` AND `PAGE_3_OF_3` AND the evaluate response is `true` (Next button is disabled on the last page).
+
+**Note**: Pagination buttons re-render the list in place. If you re-snap after the click, refs `e0..eN` for the list items will be different than before.
+
+---
+
+## Group 30: Custom dropdown menu
+
+### 30.1 Open the dropdown and pick "Beta"
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/dropdown.html"}'
+
+# Open the menu
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#dropdown-toggle"}'
+
+# Pick the "Beta" item by its data-value attribute
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#dropdown-menu li[data-value=\"beta\"]"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `DROPDOWN_SELECTED=BETA`.
+
+### 30.2 Reopen and pick "Gamma"
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#dropdown-toggle"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#dropdown-menu li[data-value=\"gamma\"]"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `DROPDOWN_SELECTED=GAMMA`.
+
+**Note**: This is a non-native dropdown — it's a `<button>` that toggles a `<ul>`. The menu items are not `<option>` elements, so `pinchtab select` won't work. Use two clicks (toggle, then item). Click-outside also dismisses the menu, so don't do anything between the two clicks that would synthesize a body click.
+
+---
+
+## Group 31: Nested iframes (3 levels deep)
+
+### 31.1 Drill into the deepest frame and click its button
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/iframe-nested.html"}'
+
+# Hop into level 2
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"#level-2"}'
+
+# Hop further into level 3 (selector is resolved relative to current scope)
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"#level-3"}'
+
+# Click the level-3 button
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#deep-button"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"main"}'
+```
+**Pass if**: Scoped snapshot contains `DEEP_CLICKED=YES_LEVEL_3`.
+
+**Note**: Each `/frame` hop is relative to the current scope, so drilling
+into a nested frame requires one hop per level. Use `{"target":"main"}`
+to unwind to the top document in a single call.
+
+---
+
+## Group 32: Dynamic iframe (inserted after load)
+
+### 32.1 Wait for a late-inserted iframe then interact with it
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/iframe-dynamic.html"}'
+
+# Wait for the marker that indicates the iframe was attached
+curl -X POST http://localhost:9867/tabs/TAB_ID/wait \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"IFRAME_DYNAMIC_ATTACHED","timeout":5000}'
+
+# Scope into it and interact
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"#late-frame"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#iframe-input","text":"Late World"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#iframe-submit"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"main"}'
+```
+**Pass if**: Scoped snapshot contains `IFRAME_INPUT_RECEIVED_LATE_WORLD`.
+
+**Note**: The iframe is added to the DOM ~1.2 s after load. Snapshotting
+immediately won't see it; `pinchtab wait --text` is the right primitive.
+
+---
+
+## Group 33: srcdoc iframe (inline HTML, no src URL)
+
+### 33.1 Interact with an inline-content iframe
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/iframe-srcdoc.html"}'
+
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"#srcdoc-frame"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#inline-input","text":"srcdoc"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#inline-submit"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"main"}'
+```
+**Pass if**: Scoped snapshot contains `INLINE_RECEIVED_SRCDOC`.
+
+**Note**: `srcdoc` iframes inherit the parent's origin (same-origin by
+default), so frame scope works the same way as `src`-based iframes. The
+returned `frameUrl` is `about:srcdoc`.
+
+---
+
+## Group 34: Sandboxed iframe (allow-scripts allow-same-origin)
+
+### 34.1 Click a button inside a sandbox="allow-scripts allow-same-origin" iframe
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/iframe-sandbox.html"}'
+
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"#sandboxed"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#sandbox-button"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/frame?tabId=TAB_ID \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"main"}'
+```
+**Pass if**: Scoped snapshot contains `SANDBOX_CLICKED=YES`.
+
+**Note**: `sandbox="allow-scripts allow-same-origin"` permits scripts and
+inherits the parent origin, so frame scope works. Sandboxes without
+`allow-same-origin` force a unique opaque origin and would behave like
+cross-origin — out of reach for the current `/frame` scope API.
+
+---
+
+## Group 35: Long-form article (Medium/Substack style)
+
+### 35.1 Readability keeps the article body
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/article.html"}'
+
+# Default mode uses Readability; this is its sweet spot.
+curl "http://localhost:9867/tabs/TAB_ID/text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `ARTICLE_PUBLISHED_2026_04_15` AND `ARTICLE_WORD_COUNT_MARKER_323` (both inside the main article body — Readability should retain them).
+
+### 35.2 `--full` picks up the surrounding chrome Readability drops
+```bash
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `ARTICLE_PUBLISHED_2026_04_15` AND `FOOTER_COPYRIGHT_MARKER`. Default Readability trims the footer; `--full` keeps it. Proves the two modes behave as documented.
+
+---
+
+## Group 36: Search results page (SERP)
+
+### 36.1 Extract a specific result title by id
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/serp.html"}'
+
+# Use a scoped snapshot to extract just one card — faster than full text.
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?selector=%23r-3&format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Snapshot contains `RESULT_3_TITLE` AND `RESULT_3_SNIPPET_MARKER`.
+
+### 36.2 Count all six result cards
+```bash
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `RESULT_1_TITLE`, `RESULT_2_TITLE`, `RESULT_3_TITLE`, `RESULT_4_TITLE`, `RESULT_5_TITLE`, `RESULT_6_TITLE` (all 6), AND `SERP_RESULT_COUNT_6`. A SERP is the canonical case where Readability's single-article assumption fails — `--full` is required to see the list.
+
+---
+
+## Group 37: Q&A thread (Stack-Overflow style)
+
+### 37.1 Find the accepted answer
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/qa.html"}'
+
+# Use eval to find the accepted answer id — structured page data beats
+# text-parsing when the marker lives in an attribute.
+curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"expression":"document.querySelector(\"[data-accepted=\\\"true\\\"]\").id"}'
+```
+**Pass if**: Response `.result` equals `"a-2"`. The accepted-answer marker is in a data attribute; this exercises `eval` as a structured alternative to text scraping.
+
+### 37.2 Extract the accepted answer body text
+```bash
+# Snapshot scoped to the accepted answer, with max-token budget
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?selector=%23a-2&format=compact&maxTokens=1500" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Scoped snapshot contains `ANSWER_2_BODY_MARKER` AND `ACCEPTED_ANSWER_ID_A2`. Tests `snapshot?selector=` for scoped reads — a common pattern when a page has many independent sections.
+
+---
+
+## Group 38: Pricing table
+
+### 38.1 Extract the Pro plan price
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/pricing.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?selector=%23plan-pro&format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Snapshot contains `PLAN_PRO_PRICE_29` AND `PLAN_PRO_LIMIT_5000_requests per day`.
+
+### 38.2 Extract all three plan prices in one pass
+```bash
+curl "http://localhost:9867/tabs/TAB_ID/text?mode=raw&format=text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Response contains `PLAN_FREE_PRICE_0`, `PLAN_PRO_PRICE_29`, AND `PLAN_ENTERPRISE_PRICE_CUSTOM`. Pricing tables are grid-heavy; Readability would pick one column. `--full` returns the whole surface.
+
+---
+
 ## Summary
 
 | Group | Tasks | Description |
@@ -1180,8 +1773,24 @@ curl "http://localhost:9867/tabs/TAB_ID/text" \
 | 20 | 2 | Dialogs |
 | 21 | 2 | Async / awaitPromise |
 | 22 | 2 | Mouse Drag & Drop |
+| 23 | 1 | Async / Loading state |
+| 24 | 2 | Keyboard events |
+| 25 | 2 | Tab panels |
+| 26 | 2 | Accordion |
+| 27 | 2 | Contenteditable editor |
+| 28 | 2 | Range slider |
+| 29 | 2 | Pagination |
+| 30 | 2 | Custom dropdown menu |
+| 31 | 1 | Nested iframes (3 levels) |
+| 32 | 1 | Dynamic iframe |
+| 33 | 1 | srcdoc iframe |
+| 34 | 1 | Sandboxed iframe |
+| 35 | 2 | Long-form article (text extraction) |
+| 36 | 2 | Search results page (SERP) |
+| 37 | 2 | Q&A thread (Stack-Overflow style) |
+| 38 | 2 | Pricing table |
 
-**Total: 58 tasks**
+**Total: 85 tasks**
 
 ## Verification Strings
 
@@ -1201,3 +1810,21 @@ curl "http://localhost:9867/tabs/TAB_ID/text" \
 | Rust Article | `VERIFY_WIKI_RUST_LANG` |
 | Async | `VERIFY_ASYNC_PAGE_77777` |
 | Drag | `VERIFY_DRAG_PAGE_33333` |
+| Loading | `VERIFY_LOADING_PAGE_11111` |
+| Keyboard | `VERIFY_KEYBOARD_PAGE_22222` |
+| Tabs | `VERIFY_TABS_PAGE_55555` |
+| Accordion | `VERIFY_ACCORDION_PAGE_66666` |
+| Editor | `VERIFY_EDITOR_PAGE_44444` |
+| Range | `VERIFY_RANGE_PAGE_99999` |
+| Pagination | `VERIFY_PAGINATION_PAGE_88888` |
+| Dropdown | `VERIFY_DROPDOWN_PAGE_77777` |
+| Iframe Nested (outer) | `VERIFY_IFRAME_NESTED_OUTER` |
+| Iframe Nested (L2) | `VERIFY_IFRAME_NESTED_L2` |
+| Iframe Nested (L3) | `VERIFY_IFRAME_NESTED_L3` |
+| Iframe Dynamic | `VERIFY_IFRAME_DYNAMIC_OUTER` |
+| Iframe Srcdoc | `VERIFY_IFRAME_SRCDOC_OUTER` |
+| Iframe Sandbox | `VERIFY_IFRAME_SANDBOX_OUTER` |
+| Article | `VERIFY_ARTICLE_PAGE_41414` |
+| SERP | `SERP_PAGE_MARKER_88044` |
+| Q&A | `VERIFY_QA_PAGE_72000` |
+| Pricing | `VERIFY_PRICING_PAGE_30303` |

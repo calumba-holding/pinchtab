@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="${SCRIPT_DIR}/../results"
 mkdir -p "${RESULTS_DIR}"
 LOG_FILE="${RESULTS_DIR}/optimization_log.md"
+CURRENT_BASELINE_PTR="${RESULTS_DIR}/current_baseline_report.txt"
+CURRENT_AGENT_PTR="${RESULTS_DIR}/current_agent_report.txt"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RUN_NUMBER=$(grep -c "^## Run #" "${LOG_FILE}" 2>/dev/null || echo 0)
 RUN_NUMBER=$((RUN_NUMBER + 1))
@@ -81,6 +83,9 @@ cat > "${AGENT_REPORT}" << EOF
   "steps": []
 }
 EOF
+
+printf '%s\n' "${BASELINE_REPORT}" > "${CURRENT_BASELINE_PTR}"
+printf '%s\n' "${AGENT_REPORT}" > "${CURRENT_AGENT_PTR}"
 
 # Clear previous agent commands log
 rm -f "${RESULTS_DIR}/agent_commands.log"
