@@ -13,8 +13,8 @@ it to the bottom of the file with the loop number that closed it.
 
 | ID | Weakness | Severity | Effort | Current status |
 |----|----------|:--------:|:------:|----------------|
-| A1 | **Missing CSS selector hangs for 30 s** before erroring. Wrong id → agent waits the full action timeout before getting a clear "not found". Hit in Loops #11, #13, #15. | 🔴 high | 🟡 medium | open |
-| A2 | **`text:<value>` selector intermittently fails** with `context deadline exceeded` on dynamic/large pages. JS-based resolver in `internal/bridge/action_resolve.go::ResolveTextToNodeID` races with DOM readiness. Every run hits it. | 🔴 high | 🔴 hard | open — documented as deprecated in SKILL.md but still present |
+| A1 | ~~**Missing CSS selector hangs for 30 s**~~ — **resolved Loop #30**. `firstNodeBySelector` now uses `chromedp.AtLeast(0)` so missing selectors return `element not found` in <100 ms. Agents that need to wait should use `pinchtab wait --selector` first. Verified via Group 8.2: 87 ms wall-clock. | 🔴 high | 🟡 medium | **closed** |
+| A2 | ~~**`text:<value>` selector intermittently fails**~~ — **resolved Loop #30**. Two underlying bugs: (1) the CLI was stripping the `text:` prefix before sending, so `click "text:Submit"` was falling through to CSS lookup for `Submit`; (2) the text resolver used `el.innerText` (O(N²) layout-forcing) instead of `el.textContent`. Fixed both; agent used `text:` aggressively in Loop #30 across 10+ cases with zero failures. | 🔴 high | 🔴 hard | **closed** |
 | A3 | **First `fill` after `nav` race** — the first `fill` action after a navigation occasionally times out; the retry works. Suggests the readiness wait in `action_pointer.go` isn't quite aligned with when the DOM is actually interactive. | 🟡 mid | 🟡 medium | open |
 | A4 | **Ref recovery picks wrong target on repeated-label siblings** — a row of `✕` delete buttons causes the recovery path to silently bind to the wrong row. **Data-loss risk.** Loop #6 caught it deleting the wrong SPA task. | 🔴 high | 🟡 medium | open |
 | A5 | **`scroll into view` fails on overlay/sticky elements** — returns `-32000 no layout object` even when the element is visible. Forces `eval`-based click workaround. | 🟡 mid | 🟡 medium | open |
@@ -177,6 +177,7 @@ functionality roadmap see the user's earlier survey (§1–11).
 
 ### Resolved (archive)
 
+- **[Loop #30]** — **A1 missing-CSS 30s hang + A2 text: selector reliability.** Both root causes fixed in `internal/bridge/action_common.go` (fast-fail via `chromedp.AtLeast(0)`), `internal/bridge/action_resolve.go` (textContent + 3s cap + leaf-most wins), and `internal/cli/actions/actions_element.go` (stop stripping the selector kind prefix). Baseline 85/85 green; Loop #30 agent used `text:` on 10+ cases with zero failures. Missing-CSS click now 87ms wall-clock (was ~30s).
 - **[Loop #17 batch — same session as coverage plan creation]** — Adopted
   native `pinchtab frame` in Group 19.2 (replacing the `eval +
   contentDocument` workaround), added Groups 31–34 covering nested /

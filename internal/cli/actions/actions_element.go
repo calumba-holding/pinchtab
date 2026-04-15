@@ -60,15 +60,25 @@ func Action(client *http.Client, base, token, kind, selectorArg string, cmd *cob
 }
 
 // setSelectorBody parses a unified selector string and sets the appropriate
-// body fields. Ref selectors use the "ref" field; all others use "selector"
-// with the raw value (no kind prefix — the server handles re-parsing).
+// body fields. Ref selectors use the "ref" field; all other kinds use
+// "selector" and MUST retain their kind prefix (e.g. `text:Submit`,
+// `xpath://button`, `semantic:accept button`) so the server can re-parse
+// them correctly. For auto-detected CSS (no prefix on input), the raw
+// input is forwarded verbatim.
 func setSelectorBody(body map[string]any, s string) {
 	sel := selector.Parse(s)
 	switch sel.Kind {
 	case selector.KindRef:
 		body["ref"] = sel.Value
-	default:
+	case selector.KindCSS:
+		// CSS is the default kind — the original string either had a
+		// `css:` prefix or was auto-detected. Send the value without a
+		// prefix; the server will re-parse as CSS.
 		body["selector"] = sel.Value
+	default:
+		// text:, xpath:, semantic:, find: — preserve the original input
+		// so the server sees the correct kind prefix when it re-parses.
+		body["selector"] = s
 	}
 }
 

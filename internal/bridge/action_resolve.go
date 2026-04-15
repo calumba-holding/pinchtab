@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/chromedp/chromedp"
 	"github.com/pinchtab/pinchtab/internal/selector"
@@ -299,86 +300,96 @@ func ResolveTextToNodeID(ctx context.Context, text string) (int64, error) {
 
 func ResolveTextToNodeIDInFrame(ctx context.Context, frameID, text string) (int64, error) {
 	var backendNodeID int64
+	// Implementation notes:
+	//   - Use `textContent` (not `innerText`) for the bulk scan. `innerText`
+	//     forces a synchronous layout pass per-element and is O(N^2) on large
+	//     pages; `textContent` is O(N). This fixes the intermittent
+	//     "context deadline exceeded" failures on dynamic/large fixtures.
+	//   - Exact-match pass first (single linear sweep). Fuzzy fallback is
+	//     only evaluated when no exact hit fires — most real lookups are
+	//     covered by the exact pass and cost nothing extra.
+	//   - "Leaf-most match wins": we keep the smallest element (by
+	//     descendant count) whose text contains the needle, so a button
+	//     that reads "Sign In" is preferred over its ancestor <body> which
+	//     technically also contains the string.
 	const findTextFn = `function(needle) {
 			const root = this.body || this.documentElement;
-			if (!root) {
-				return null;
-			}
+			if (!root) return null;
 
 			const normalize = (value) => String(value || "")
 				.toLowerCase()
 				.replace(/\s+/g, " ")
 				.trim();
-
 			const semanticWeight = (el) => {
 				const tag = (el.tagName || "").toLowerCase();
-				if (tag === "button" || tag === "a" || tag === "input") {
-					return 0.25;
-				}
+				if (tag === "button" || tag === "a" || tag === "input") return 0.25;
 				const role = normalize(el.getAttribute && el.getAttribute("role"));
-				if (role === "button" || role === "link" || role === "textbox") {
-					return 0.2;
-				}
+				if (role === "button" || role === "link" || role === "textbox") return 0.2;
 				return 0;
 			};
 
 			const needleNorm = normalize(needle);
-			if (!needleNorm) {
-				return null;
-			}
+			if (!needleNorm) return null;
 
 			const elements = root.querySelectorAll("*");
+
+			// Exact-match pass: pick the leaf-most element whose textContent
+			// contains the needle. textContent is cheap (no layout), so we
+			// can afford to visit every node.
+			let exactBest = null;
+			let exactBestSize = Infinity;
+			for (const el of elements) {
+				const tc = normalize(el.textContent || "");
+				if (!tc || !tc.includes(needleNorm)) continue;
+				// "Leaf-most" = fewest descendants. Smaller subtree == more
+				// specific match. Ties broken by semantic weight.
+				const size = el.getElementsByTagName("*").length;
+				if (size < exactBestSize ||
+					(size === exactBestSize && exactBest && semanticWeight(el) > semanticWeight(exactBest))) {
+					exactBest = el;
+					exactBestSize = size;
+				}
+			}
+			if (exactBest) return exactBest;
+
+			// Fuzzy fallback: token-overlap score with semantic weighting.
+			// Only runs if exact-match missed.
+			const tokens = needleNorm.split(" ").filter(Boolean);
+			if (tokens.length === 0) return null;
+
 			let best = null;
 			let bestScore = 0;
-
 			for (const el of elements) {
-				const rawText = el.innerText || el.textContent || "";
-				const textNorm = normalize(rawText);
-				if (!textNorm) {
-					continue;
-				}
-
-				let childContains = false;
-				for (const child of el.children) {
-					const childNorm = normalize(child.innerText || child.textContent || "");
-					if (childNorm && childNorm.includes(needleNorm)) {
-						childContains = true;
-						break;
-					}
-				}
-
-				if (textNorm.includes(needleNorm) && !childContains) {
-					return el;
-				}
-
-				// Fuzzy fallback: token-overlap score with semantic weighting.
-				const tokens = needleNorm.split(" ").filter(Boolean);
-				if (tokens.length === 0) {
-					continue;
-				}
+				const tc = normalize(el.textContent || "");
+				if (!tc) continue;
 				let hits = 0;
 				for (const token of tokens) {
-					if (textNorm.includes(token)) {
-						hits++;
-					}
+					if (tc.includes(token)) hits++;
 				}
-				let score = hits / tokens.length;
-				score += semanticWeight(el);
+				let score = hits / tokens.length + semanticWeight(el);
 				if (score > bestScore) {
 					bestScore = score;
 					best = el;
 				}
 			}
-
-			if (best && bestScore >= 0.7) {
-				return best;
-			}
-			return null;
+			return (best && bestScore >= 0.7) ? best : null;
 		}`
 
-	err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+	// Bound the lookup with its own short deadline so a slow resolution
+	// can't eat the entire action timeout. Callers can still pass a longer
+	// outer deadline if they really want to wait — this just caps how long
+	// we'll spend before giving up with "text not found".
+	lookupCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	err := chromedp.Run(lookupCtx, chromedp.ActionFunc(func(ctx context.Context) error {
 		nid, err := resolveNodeInFrame(ctx, frameID, findTextFn, []map[string]any{{"value": text}})
 		if err != nil {
+			// If the parent context is still alive, this was a real
+			// "not found" rather than a timeout — surface it clearly.
+			if lookupCtx.Err() != nil && ctx.Err() == nil {
+				return fmt.Errorf("text %q lookup timed out after 3s (page may be large or unresponsive): %w", text, err)
+			}
 			return fmt.Errorf("text %q not found: %w", text, err)
 		}
 		backendNodeID = nid
