@@ -23,5 +23,11 @@ func Text(client *http.Client, base, token string, cmd *cobra.Command) {
 	if v, _ := cmd.Flags().GetString("tab"); v != "" {
 		params.Set("tabId", v)
 	}
+	// --frame lets a one-shot call target an iframe without having to go
+	// through the stateful /frame scope. If omitted, the handler falls back
+	// to the currently-scoped frame for the tab (set via `pinchtab frame`).
+	if v, _ := cmd.Flags().GetString("frame"); v != "" {
+		params.Set("frameId", v)
+	}
 	apiclient.DoGet(client, base, token, "/text", params)
 }

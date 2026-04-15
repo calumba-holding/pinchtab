@@ -18,6 +18,16 @@ type FrameElementMeta struct {
 	Src     string `json:"src,omitempty"`
 }
 
+// FrameExecutionContextID returns a Runtime.executionContextId that
+// evaluates in the given frame's document. Safe to call from other packages
+// that need to scope `Runtime.evaluate` / `Runtime.callFunctionOn` to a
+// frame (for example, the /text handler when a frame scope is active).
+// Passes frameID == "" through as a no-op (returns 0, nil) so callers can
+// fall back to the default top-level context without branching.
+func FrameExecutionContextID(ctx context.Context, frameID string) (int64, error) {
+	return frameExecutionContextID(ctx, frameID)
+}
+
 func frameExecutionContextID(ctx context.Context, frameID string) (int64, error) {
 	if frameID == "" {
 		return 0, nil
