@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
@@ -14,6 +15,12 @@ var scrollByCoordinateAction = ScrollByCoordinate
 var mouseMoveByCoordinateAction = MouseMoveByCoordinate
 var mouseDownByCoordinateAction = MouseDownByCoordinate
 var mouseUpByCoordinateAction = MouseUpByCoordinate
+
+const (
+	dialogAutoHandlePollInterval = 10 * time.Millisecond
+	dialogAutoHandleSettleDelay  = 40 * time.Millisecond
+	dialogAutoHandleTimeout      = 750 * time.Millisecond
+)
 
 type pointerState struct {
 	X     float64
@@ -81,10 +88,11 @@ func (b *Bridge) actionClick(ctx context.Context, req ActionRequest) (map[string
 	// Arm a one-shot dialog auto-handler if the caller expects the click
 	// to open a native JS dialog. Without this, the click would hang
 	// waiting for the dialog to be handled from a separate request.
-	if req.DialogAction != "" && req.TabID != "" {
-		if dm := b.GetDialogManager(); dm != nil {
-			dm.ArmAutoHandler(req.TabID, req.DialogAction, req.DialogText)
-		}
+	dm := b.GetDialogManager()
+	armedDialog := false
+	if req.DialogAction != "" && req.TabID != "" && dm != nil {
+		dm.ArmAutoHandler(req.TabID, req.DialogAction, req.DialogText)
+		armedDialog = true
 	}
 
 	var err error
@@ -116,10 +124,36 @@ func (b *Bridge) actionClick(ctx context.Context, req ActionRequest) (map[string
 	if err != nil {
 		return nil, err
 	}
+	if armedDialog {
+		waitForArmedDialogSettle(dm, req.TabID, dialogAutoHandleTimeout)
+	}
 	if req.WaitNav {
 		_ = chromedp.Run(ctx, chromedp.Sleep(b.Config.WaitNavDelay))
 	}
 	return map[string]any{"clicked": true}, nil
+}
+
+func waitForArmedDialogSettle(dm *DialogManager, tabID string, timeout time.Duration) {
+	if dm == nil || strings.TrimSpace(tabID) == "" {
+		return
+	}
+	if timeout <= 0 {
+		timeout = dialogAutoHandleTimeout
+	}
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !dm.HasAutoHandler(tabID) {
+			// Allow the handler goroutine to finish UI side-effects before
+			// immediate follow-up reads (for example get_text assertions).
+			time.Sleep(dialogAutoHandleSettleDelay)
+			return
+		}
+		time.Sleep(dialogAutoHandlePollInterval)
+	}
+
+	// Prevent stale one-shot handlers from leaking into later clicks.
+	_ = dm.TakeAutoHandler(tabID)
 }
 
 func (b *Bridge) actionDoubleClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
@@ -258,7 +292,13 @@ func (b *Bridge) actionMouseUp(ctx context.Context, req ActionRequest) (map[stri
 func (b *Bridge) actionMouseWheel(ctx context.Context, req ActionRequest) (map[string]any, error) {
 	x, y, err := b.pointerCoordinatesFromRequest(ctx, req, true)
 	if err != nil {
-		return nil, err
+		if req.HasXY || req.NodeID > 0 || req.Selector != "" || req.TabID == "" {
+			return nil, err
+		}
+		x, y, err = scrollViewportCenter(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("resolve wheel viewport center: %w", err)
+		}
 	}
 	deltaX := req.DeltaX
 	deltaY := req.DeltaY
@@ -267,7 +307,7 @@ func (b *Bridge) actionMouseWheel(ctx context.Context, req ActionRequest) (map[s
 		deltaY = req.ScrollY
 	}
 	if deltaX == 0 && deltaY == 0 {
-		deltaY = 800
+		deltaY = 120
 	}
 	if err := scrollByCoordinateAction(ctx, x, y, deltaX, deltaY); err != nil {
 		return nil, err
@@ -291,7 +331,7 @@ func (b *Bridge) actionScroll(ctx context.Context, req ActionRequest) (map[strin
 	scrollX := req.ScrollX
 	scrollY := req.ScrollY
 	if scrollX == 0 && scrollY == 0 {
-		scrollY = 800
+		scrollY = 120
 	}
 
 	scrollTargetX := req.X
@@ -304,7 +344,16 @@ func (b *Bridge) actionScroll(ctx context.Context, req ActionRequest) (map[strin
 		}
 	}
 
-	return map[string]any{"scrolled": true, "x": scrollX, "y": scrollY},
+	return map[string]any{
+			"scrolled": true,
+			// Legacy keys retained for compatibility with existing clients.
+			"x":       scrollX,
+			"y":       scrollY,
+			"targetX": scrollTargetX,
+			"targetY": scrollTargetY,
+			"deltaX":  scrollX,
+			"deltaY":  scrollY,
+		},
 		scrollByCoordinateAction(ctx, scrollTargetX, scrollTargetY, scrollX, scrollY)
 }
 

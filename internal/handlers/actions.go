@@ -65,6 +65,8 @@ func (h *Handlers) HandleAction(w http.ResponseWriter, r *http.Request) {
 		req.Text = q.Get("text")
 		req.Value = q.Get("value")
 		req.Key = q.Get("key")
+		req.DialogAction = strings.ToLower(strings.TrimSpace(q.Get("dialogAction")))
+		req.DialogText = q.Get("dialogText")
 		if v := q.Get("nodeId"); v != "" {
 			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 				req.NodeID = n
@@ -104,11 +106,16 @@ func (h *Handlers) HandleAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Kind = bridge.CanonicalActionKind(req.Kind)
+		req.DialogAction = strings.ToLower(strings.TrimSpace(req.DialogAction))
 	}
 
 	// Validate kind — single endpoint returns 400 for bad input (unlike batch which returns 200 with errors)
 	if req.Kind == "" {
 		httpx.Error(w, 400, fmt.Errorf("missing required field 'kind'"))
+		return
+	}
+	if req.DialogAction != "" && req.DialogAction != "accept" && req.DialogAction != "dismiss" {
+		httpx.Error(w, 400, fmt.Errorf("dialogAction must be 'accept' or 'dismiss'"))
 		return
 	}
 	h.recordActionRequest(r, req)

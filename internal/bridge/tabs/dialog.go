@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/chromedp/cdproto/page"
@@ -12,6 +13,8 @@ import (
 )
 
 const maxDialogTextBytes = 8 * 1024
+
+var handleDialogAction = HandleDialog
 
 // DialogState represents a pending JavaScript dialog.
 type DialogState struct {
@@ -57,6 +60,14 @@ func (dm *DialogManager) TakeAutoHandler(tabID string) *ArmedDialogHandler {
 	h := dm.armed[tabID]
 	delete(dm.armed, tabID)
 	return h
+}
+
+// HasAutoHandler reports whether a one-shot auto-handler is armed for the tab.
+func (dm *DialogManager) HasAutoHandler(tabID string) bool {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+	_, ok := dm.armed[tabID]
+	return ok
 }
 
 func (dm *DialogManager) SetPending(tabID string, state *DialogState) {
@@ -115,7 +126,7 @@ func ListenDialogEvents(ctx context.Context, tabID string, dm *DialogManager, au
 				// command, and the enclosing ListenTarget callback runs on
 				// the CDP event loop — doing CDP work here would deadlock.
 				go func() {
-					if err := HandleDialog(ctx, accept, promptText); err != nil {
+					if err := handleDialogAction(ctx, accept, promptText); err != nil {
 						slog.Warn("armed dialog handler failed", "tabId", tabID, "err", err)
 						dm.SetPending(tabID, state)
 					} else {
@@ -129,7 +140,7 @@ func ListenDialogEvents(ctx context.Context, tabID string, dm *DialogManager, au
 				state.HasBrowserHandler = true
 				// Same reasoning as above — dispatch in a goroutine.
 				go func() {
-					if err := HandleDialog(ctx, true, e.DefaultPrompt); err != nil {
+					if err := handleDialogAction(ctx, true, e.DefaultPrompt); err != nil {
 						slog.Warn("auto-accept dialog failed", "tabId", tabID, "err", err)
 						dm.SetPending(tabID, state)
 					} else {
@@ -162,10 +173,21 @@ type DialogResult struct {
 func HandlePendingDialog(ctx context.Context, tabID string, dm *DialogManager, accept bool, promptText string) (*DialogResult, error) {
 	state := dm.GetAndClear(tabID)
 	if state == nil {
-		return nil, fmt.Errorf("no dialog open on tab %s", tabID)
+		// Best-effort fallback when dialog-open events were missed.
+		if err := handleDialogAction(ctx, accept, promptText); err != nil {
+			if isNoDialogOpenError(err) || isDialogContextUnavailableError(err) {
+				return nil, fmt.Errorf("no dialog open on tab %s", tabID)
+			}
+			return nil, fmt.Errorf("handle dialog: %w", err)
+		}
+		return &DialogResult{Type: "unknown", Message: "", Handled: true}, nil
 	}
 
-	if err := HandleDialog(ctx, accept, promptText); err != nil {
+	if err := handleDialogAction(ctx, accept, promptText); err != nil {
+		if isNoDialogOpenError(err) {
+			// Dialog may already be handled/closed by browser auto-handler.
+			return &DialogResult{Type: state.Type, Message: state.Message, Handled: true}, nil
+		}
 		dm.SetPending(tabID, state)
 		return nil, fmt.Errorf("handle dialog: %w", err)
 	}
@@ -175,6 +197,24 @@ func HandlePendingDialog(ctx context.Context, tabID string, dm *DialogManager, a
 		Message: state.Message,
 		Handled: true,
 	}, nil
+}
+
+func isNoDialogOpenError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "no dialog open") ||
+		strings.Contains(msg, "no dialog is showing") ||
+		strings.Contains(msg, "not showing a dialog")
+}
+
+func isDialogContextUnavailableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "invalid context")
 }
 
 func normalizeDialogState(state *DialogState) *DialogState {

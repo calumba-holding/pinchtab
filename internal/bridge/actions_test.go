@@ -229,15 +229,35 @@ func TestMouseDownAction_UsesTrackedPointerWhenTargetMissing(t *testing.T) {
 	}
 }
 
-func TestMouseWheelAction_RequiresKnownPointerWhenTargetMissing(t *testing.T) {
+func TestMouseWheelAction_UsesViewportCenterWhenPointerMissing(t *testing.T) {
 	b := New(context.TODO(), nil, &config.RuntimeConfig{})
 
-	_, err := b.Actions[ActionMouseWheel](context.Background(), ActionRequest{TabID: "tab-missing"})
-	if err == nil {
-		t.Fatal("expected missing pointer error")
+	origScrollByCoordinate := scrollByCoordinateAction
+	origScrollViewportCenter := scrollViewportCenter
+	t.Cleanup(func() {
+		scrollByCoordinateAction = origScrollByCoordinate
+		scrollViewportCenter = origScrollViewportCenter
+	})
+
+	scrollViewportCenter = func(context.Context) (float64, float64, error) {
+		return 300, 200, nil
 	}
-	if !strings.Contains(err.Error(), "move pointer first") {
-		t.Fatalf("unexpected error: %v", err)
+	called := false
+	scrollByCoordinateAction = func(ctx context.Context, x, y float64, deltaX, deltaY int) error {
+		called = true
+		if x != 300 || y != 200 {
+			t.Fatalf("wheel coordinates = (%v, %v), want (300, 200)", x, y)
+		}
+		if deltaX != 0 || deltaY != 120 {
+			t.Fatalf("wheel delta = (%d, %d), want (0, 120)", deltaX, deltaY)
+		}
+		return nil
+	}
+	if _, err := b.Actions[ActionMouseWheel](context.Background(), ActionRequest{TabID: "tab-missing"}); err != nil {
+		t.Fatalf("unexpected wheel error: %v", err)
+	}
+	if !called {
+		t.Fatal("expected wheel action to use viewport center fallback")
 	}
 }
 
@@ -320,8 +340,8 @@ func TestScrollAction_UsesViewportCenterWhenCoordinatesMissing(t *testing.T) {
 		if x != 400 || y != 300 {
 			t.Fatalf("wheel coordinates = (%v, %v), want (400, 300)", x, y)
 		}
-		if deltaX != 0 || deltaY != 800 {
-			t.Fatalf("wheel delta = (%d, %d), want (0, 800)", deltaX, deltaY)
+		if deltaX != 0 || deltaY != 120 {
+			t.Fatalf("wheel delta = (%d, %d), want (0, 120)", deltaX, deltaY)
 		}
 		return nil
 	}
@@ -333,8 +353,11 @@ func TestScrollAction_UsesViewportCenterWhenCoordinatesMissing(t *testing.T) {
 	if !called {
 		t.Fatal("expected viewport-center wheel path to be used")
 	}
-	if result["x"] != 0 || result["y"] != 800 {
+	if result["x"] != 0 || result["y"] != 120 {
 		t.Fatalf("unexpected result payload: %#v", result)
+	}
+	if result["targetX"] != 400.0 || result["targetY"] != 300.0 {
+		t.Fatalf("unexpected scroll target payload: %#v", result)
 	}
 }
 

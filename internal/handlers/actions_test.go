@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/chromedp/cdproto/target"
@@ -424,6 +425,42 @@ func TestHandleAction_InvalidJSON(t *testing.T) {
 	h.HandleAction(w, req)
 	if w.Code != 400 {
 		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestHandleAction_PostRejectsInvalidDialogAction(t *testing.T) {
+	h := New(&mockBridge{}, &config.RuntimeConfig{}, nil, nil, nil)
+	req := httptest.NewRequest("POST", "/action", bytes.NewReader([]byte(`{"kind":"click","selector":"#btn","dialogAction":"maybe"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAction(w, req)
+
+	if w.Code != 400 {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "dialogAction must be 'accept' or 'dismiss'") {
+		t.Fatalf("expected dialogAction validation error, got %s", w.Body.String())
+	}
+}
+
+func TestHandleAction_GetAcceptsValidDialogAction(t *testing.T) {
+	b := &recordingActionBridge{}
+	h := New(b, &config.RuntimeConfig{}, nil, nil, nil)
+
+	req := httptest.NewRequest("GET", "/action?kind=mouse-move&x=0&y=0&dialogAction=accept&dialogText=ok", nil)
+	w := httptest.NewRecorder()
+
+	h.HandleAction(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if b.lastReq.DialogAction != "accept" {
+		t.Fatalf("dialogAction = %q, want accept", b.lastReq.DialogAction)
+	}
+	if b.lastReq.DialogText != "ok" {
+		t.Fatalf("dialogText = %q, want ok", b.lastReq.DialogText)
 	}
 }
 
