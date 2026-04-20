@@ -34,9 +34,10 @@ COMMANDS=(
   "  api-extended:🐳:API extended (multi-instance)"
   "  cli-extended:🐳:CLI extended tests"
   "  infra-extended:🐳:Infra extended (multi-instance)"
-  "benchmark:📊:Benchmark lanes"
-  "  baseline:📊:Run benchmark baseline lane"
-  "  agent:📊:Run PinchTab benchmark via Anthropic Messages API"
+  "opt:⚡:Optimization baseline"
+  "  baseline:⚡:Run optimization baseline lane"
+  "bench:📊:Benchmark lanes"
+  "  pinchtab:📊:Run PinchTab benchmark via Anthropic Messages API"
   "  agent-browser:📊:Run agent-browser benchmark via Anthropic Messages API"
   "doctor:🩺:Setup dev environment"
   "check go:🧪:Go only"
@@ -163,16 +164,27 @@ run_command() {
       echo ""
       exec bash scripts/docker-smoke.sh "$image"
       ;;
-    "benchmark")
-      echo "  ${ACCENT}${BOLD}📊 Benchmark${NC}"
+    "opt")
+      echo "  ${ACCENT}${BOLD}⚡ Optimization${NC}"
       echo ""
-      exec bash scripts/dev-benchmark.sh help
+      exec bash scripts/dev-opt.sh help
       ;;
-    "benchmark "*)
+    "opt "*)
+      echo "  ${ACCENT}${BOLD}⚡ Optimization${NC}"
+      echo ""
+      local opt_args="${target#opt }"
+      exec bash scripts/dev-opt.sh ${opt_args}
+      ;;
+    "bench")
       echo "  ${ACCENT}${BOLD}📊 Benchmark${NC}"
       echo ""
-      local benchmark_args="${target#benchmark }"
-      exec bash scripts/dev-benchmark.sh ${benchmark_args}
+      exec bash scripts/dev-bench.sh help
+      ;;
+    "bench "*)
+      echo "  ${ACCENT}${BOLD}📊 Benchmark${NC}"
+      echo ""
+      local bench_args="${target#bench }"
+      exec bash scripts/dev-bench.sh ${bench_args}
       ;;
     "e2e"*)
       local suite="release"
@@ -321,11 +333,18 @@ if [ $# -gt 0 ]; then
         run_command "binary"
       fi
       ;;
-    benchmark)
+    opt)
       if [ $# -gt 1 ]; then
-        exec bash scripts/dev-benchmark.sh "${@:2}"
+        exec bash scripts/dev-opt.sh "${@:2}"
       else
-        exec bash scripts/dev-benchmark.sh help
+        exec bash scripts/dev-opt.sh help
+      fi
+      ;;
+    bench)
+      if [ $# -gt 1 ]; then
+        exec bash scripts/dev-bench.sh "${@:2}"
+      else
+        exec bash scripts/dev-bench.sh help
       fi
       ;;
     *) run_command "$1" ;;
