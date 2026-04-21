@@ -8,27 +8,45 @@ curl -X POST http://localhost:9867/action \
   -d '{"kind":"click","ref":"e5"}'
 # CLI Alternative
 pinchtab click e5
-# Response
-{
-  "success": true,
-  "result": {
-    "success": true
-  }
-}
+# Response (use --json for full JSON)
+OK
 ```
 
-Notes:
+## CLI Flags
 
-- element refs come from `/snapshot`
-- refs returned for iframe descendants can be clicked directly; no manual frame switch is required
-- selector lookup is limited to the current frame scope; the default scope is `main`
-- use [`/frame`](./frame.md) or `pinchtab frame` before selector-based iframe actions
-- missing selectors now fail immediately with `element not found: ...`; if you
-  want wait semantics for dynamic UI, use [`pinchtab wait`](./wait.md) or
-  `/wait` before the click
-- the raw action endpoint also accepts `selector`, for example `{"kind":"click","selector":"#login"}`
-- the CLI also accepts `#login`, `xpath://button`, `text:Submit`, and `find:login button`
-- `--wait-nav` exists on the top-level CLI command
+| Flag | Description |
+|------|-------------|
+| `--css` | CSS selector instead of ref |
+| `--wait-nav` | Wait for navigation after click |
+| `--snap` | Output interactive snapshot after click |
+| `--snap-diff` | Output snapshot diff after click |
+| `--text` | Output page text after click |
+| `--dialog-action` | Auto-handle JS dialog: `accept` or `dismiss` |
+| `--dialog-text` | Prompt response text (with `--dialog-action accept`) |
+| `--x`, `--y` | Click at specific coordinates |
+| `--json` | Full JSON response |
+| `--tab` | Target specific tab |
+
+## Examples
+
+```bash
+pinchtab click e5                       # Click by ref
+pinchtab click "#login"                 # Click by CSS
+pinchtab click "text:Submit"            # Click by text
+pinchtab click e5 --snap                # Click and show new snapshot
+pinchtab click e5 --wait-nav            # Click and wait for navigation
+pinchtab click e5 --dialog-action accept  # Auto-accept alert/confirm
+pinchtab click --x 100 --y 200          # Click at coordinates
+```
+
+## Notes
+
+- Element refs come from `/snapshot`
+- Refs for iframe descendants can be clicked directly without frame switch
+- Selector lookup is limited to current frame scope (default: `main`)
+- Use [`/frame`](./frame.md) before selector-based iframe actions
+- Missing selectors fail immediately; use [`pinchtab wait`](./wait.md) first for dynamic UI
+- The API also accepts `selector` field: `{"kind":"click","selector":"#login"}`
 
 ## Related Pages
 

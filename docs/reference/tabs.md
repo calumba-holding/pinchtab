@@ -62,9 +62,7 @@ That command opens a tab for the instance and then navigates it.
 
 ```bash
 curl http://localhost:9867/tabs
-# CLI Alternative
-pinchtab tab
-# Response
+# Response (API always returns JSON)
 {
   "tabs": [
     {
@@ -75,6 +73,12 @@ pinchtab tab
     }
   ]
 }
+
+# CLI Alternative (human-readable by default)
+pinchtab tab
+# Output: *8f9c7d4e...  https://pinchtab.com  PinchTab
+
+pinchtab tab --json                    # Full JSON response
 ```
 
 Notes:

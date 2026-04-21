@@ -288,3 +288,20 @@ Commands with `--tab` currently include:
 - `dialog dismiss`
 - `console`
 - `errors`
+
+## Output Format
+
+Most commands output human-readable text by default. Use `--json` for machine-parseable JSON output:
+
+```bash
+pinchtab tab                            # Human-readable: *abc123  https://...  Page Title
+pinchtab tab --json                     # JSON: {"tabs":[...]}
+pinchtab frame                          # Human-readable: main
+pinchtab frame --json                   # JSON: {"tabId":"...","scoped":false,...}
+pinchtab network                        # Human-readable: GET  200  https://...
+pinchtab network --json                 # JSON: {"entries":[...],"count":5}
+```
+
+**For scripts and automation**: Always use `--json` when piping output or parsing programmatically. Human-readable formats may change between versions and are not guaranteed to be stable. The JSON schema is the stable contract.
+
+Commands with `--json` include: `tab`, `frame`, `network`, `click`, `type`, `scroll`, `nav`, `back`, `forward`, `reload`, `wait`, `find`, `eval`, and most action commands.

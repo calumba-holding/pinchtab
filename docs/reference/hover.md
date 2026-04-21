@@ -8,20 +8,24 @@ curl -X POST http://localhost:9867/action \
   -d '{"kind":"hover","ref":"e5"}'
 # CLI Alternative
 pinchtab hover e5
-# Response
-{
-  "success": true,
-  "result": {
-    "success": true
-  }
-}
+# Response (use --json for full JSON)
+OK
 ```
 
 Use this when menus or tooltips appear only after hover.
 
-The raw action endpoint accepts either `ref` or `selector`. The CLI accepts unified selector forms such as `e5`, `#menu`, `xpath://button`, `text:Menu`, and `find:account menu`.
+## CLI Flags
 
-Selector lookup is limited to the current frame scope. The default scope is `main`; use [`/frame`](./frame.md) or `pinchtab frame` before selector-based iframe hover calls.
+| Flag | Description |
+|------|-------------|
+| `--css` | CSS selector instead of ref |
+| `--x`, `--y` | Hover at specific coordinates |
+| `--json` | Full JSON response |
+| `--tab` | Target specific tab |
+
+The CLI accepts unified selector forms: `e5`, `#menu`, `xpath://button`, `text:Menu`, `find:account menu`.
+
+Selector lookup is limited to current frame scope (default: `main`). Use [`/frame`](./frame.md) before iframe hover calls.
 
 ## Related Pages
 

@@ -13,10 +13,34 @@ pinchtab pdf -o page.pdf
 }
 ```
 
-Useful flags:
+## CLI Flags
 
-- CLI: `-o`, `--tab`, `--landscape`, `--scale`
-- API query: `output=file`, `raw`, `landscape`, `scale`, `paperWidth`, `paperHeight`
+| Flag | Description |
+|------|-------------|
+| `-o`, `--output` | Save PDF to file path |
+| `--landscape` | Landscape orientation |
+| `--scale` | Page scale (e.g. 0.5) |
+| `--paper-width` | Paper width (inches) |
+| `--paper-height` | Paper height (inches) |
+| `--page-ranges` | Page ranges (e.g. 1-3) |
+| `--prefer-css-page-size` | Use CSS page size |
+| `--display-header-footer` | Show header/footer |
+| `--header-template` | Header HTML template |
+| `--footer-template` | Footer HTML template |
+| `--margin-*` | Margins (top, bottom, left, right) |
+| `--generate-tagged-pdf` | Generate tagged PDF |
+| `--generate-document-outline` | Generate document outline |
+| `--tab` | Target specific tab |
+
+## API Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `output` | `file` to save server-side |
+| `raw` | `true` for raw PDF bytes |
+| `landscape` | Landscape orientation |
+| `scale` | Page scale |
+| `paperWidth`, `paperHeight` | Paper dimensions |
 
 ## Related Pages
 
