@@ -10,6 +10,7 @@ func allTools() []mcp.Tool {
 			mcp.WithDescription("Navigate to a URL in the browser"),
 			mcp.WithString("url", mcp.Required(), mcp.Description("The URL to navigate to")),
 			mcp.WithString("tabId", mcp.Description("Target tab ID (optional, uses current tab if empty)")),
+			mcp.WithBoolean("snap", mcp.Description("Return interactive compact snapshot after navigation (saves a round-trip)")),
 		),
 		mcp.NewTool("pinchtab_snapshot",
 			mcp.WithDescription("Get an accessibility tree snapshot of the current page. Use this sparingly: prefer pinchtab_find + action selectors for faster loops."),
@@ -56,6 +57,7 @@ func allTools() []mcp.Tool {
 			mcp.WithNumber("y", mcp.Description("Optional Y coordinate for coordinate click")),
 			mcp.WithNumber("nodeId", mcp.Description("Optional backend node ID to target directly")),
 			mcp.WithBoolean("waitNav", mcp.Description("Wait for navigation after the click when the element triggers a page change")),
+			mcp.WithBoolean("snap", mcp.Description("Return interactive compact snapshot after click (saves a round-trip)")),
 			mcp.WithString("tabId", mcp.Description("Target tab ID")),
 		),
 		mcp.NewTool("pinchtab_type",
@@ -96,6 +98,7 @@ func allTools() []mcp.Tool {
 			mcp.WithString("query", mcp.Description("Alias for semantic targeting when selector is omitted")),
 			mcp.WithString("value", mcp.Required(), mcp.Description("Option value or visible text to select")),
 			mcp.WithString("tabId", mcp.Description("Target tab ID")),
+			mcp.WithBoolean("snap", mcp.Description("Return interactive compact snapshot after select (saves a round-trip)")),
 		),
 		mcp.NewTool("pinchtab_scroll",
 			mcp.WithDescription("Scroll the page or an element. For element targeting + pixel deltas, this automatically uses wheel semantics for smoother behavior."),
@@ -125,6 +128,7 @@ func allTools() []mcp.Tool {
 			mcp.WithString("query", mcp.Description("Alias for semantic targeting when selector is omitted")),
 			mcp.WithString("value", mcp.Required(), mcp.Description("Value to fill")),
 			mcp.WithString("tabId", mcp.Description("Target tab ID")),
+			mcp.WithBoolean("snap", mcp.Description("Return interactive compact snapshot after fill (saves a round-trip)")),
 		),
 
 		// ── Keyboard (no selector — targets focused element) ────────

@@ -8,12 +8,12 @@ source "${GROUP_DIR}/../../helpers/cli.sh"
 start_test "pinchtab type <ref> <text>"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
-pt_ok snap --interactive
+pt_ok snap --interactive --compact=false
 
 USERNAME_REF=$(find_ref_by_role_and_name "textbox" "Username:" "$PT_OUT")
 if assert_ref_found "$USERNAME_REF" "username input ref"; then
   pt_ok type "$USERNAME_REF" "typed-via-ref"
-  assert_output_contains "typed" "confirms text was typed"
+  assert_output_contains "OK" "confirms text was typed"
 fi
 
 end_test
@@ -22,12 +22,12 @@ end_test
 start_test "pinchtab click <ref>"
 
 pt_ok nav "${FIXTURES_URL}/buttons.html"
-pt_ok snap
+pt_ok snap --full
 
 BUTTON_REF=$(find_ref_by_role "button" "$PT_OUT")
 if assert_ref_found "$BUTTON_REF" "button ref"; then
   pt_ok click "$BUTTON_REF"
-  assert_output_contains "clicked" "confirms click by ref"
+  assert_output_contains "OK" "confirms click by ref"
 fi
 
 end_test
@@ -53,7 +53,7 @@ end_test
 start_test "pinchtab hover (basic)"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
-pt_ok snap --interactive
+pt_ok snap --interactive --compact=false
 
 HOVER_REF=$(find_ref_by_role_and_name "textbox" "Username:" "$PT_OUT")
 if assert_ref_found "$HOVER_REF" "username input ref"; then
@@ -70,13 +70,11 @@ pt_ok click --css "#username"
 
 # Hold Shift key down
 pt_ok keydown Shift
-assert_output_contains "keydown" "keydown response"
-assert_output_contains "Shift" "keydown key name"
+assert_output_contains "OK" "keydown response"
 
 # Release Shift key
 pt_ok keyup Shift
-assert_output_contains "keyup" "keyup response"
-assert_output_contains "Shift" "keyup key name"
+assert_output_contains "OK" "keyup response"
 
 end_test
 
@@ -88,7 +86,7 @@ pt_ok click --css "#username"
 
 # Use keyboard type to simulate keystrokes
 pt_ok keyboard type "hello123"
-assert_output_contains "typed" "keyboard type response"
+assert_output_contains "OK" "keyboard type response"
 
 # Verify the text was actually typed into the input
 pt_ok eval "document.querySelector('#username').value"
@@ -104,7 +102,7 @@ pt_ok click --css "#email"
 
 # Use keyboard inserttext (paste-like, no key events)
 pt_ok keyboard inserttext "test@example.com"
-assert_output_contains "inserted" "keyboard inserttext response"
+assert_output_contains "OK" "keyboard inserttext response"
 
 # Verify the text was actually inserted
 pt_ok eval "document.querySelector('#email').value"
@@ -148,17 +146,17 @@ pt_ok click --css "#email"
 
 # Type text containing periods (email address)
 pt_ok keyboard type "test@example.com"
-assert_output_contains "typed" "keyboard type response"
+assert_output_contains "OK" "keyboard type response"
 
 # Verify dots were preserved
 pt_ok eval "document.querySelector('#email').value"
-assert_json_field ".result" "test@example.com" "period characters preserved"
+assert_output_contains "test@example.com" "period characters preserved"
 
 # Test IP address (multiple dots)
 pt_ok click --css "#username"
 pt_ok keyboard type "192.168.1.100"
 pt_ok eval "document.querySelector('#username').value"
-assert_json_field ".result" "192.168.1.100" "multiple dots preserved"
+assert_output_contains "192.168.1.100" "multiple dots preserved"
 
 end_test
 
@@ -177,7 +175,7 @@ pt_ok click "--css" "#submit-btn"
 
 # The JS submit handler must have fired and written LOGIN_SUCCESS to #result.
 pt_ok eval "document.getElementById('result-success')?.textContent"
-assert_json_field ".result" "LOGIN_SUCCESS" "JS submit handler fired on button click"
+assert_output_contains "LOGIN_SUCCESS" "JS submit handler fired on button click"
 
 end_test
 
@@ -190,7 +188,7 @@ pt_ok fill "#password" "wrong"
 pt_ok click "--css" "#submit-btn"
 
 pt_ok eval "document.getElementById('result-failure')?.textContent"
-assert_json_field ".result" "LOGIN_FAILURE" "JS submit handler fired and returned failure"
+assert_output_contains "LOGIN_FAILURE" "JS submit handler fired and returned failure"
 
 end_test
 
@@ -206,11 +204,11 @@ pt_ok click --css "#username"
 # Type a long string (65 chars) - should not timeout
 LONG_TEXT="The quick brown fox jumps over the lazy dog and keeps on running"
 pt_ok keyboard type "$LONG_TEXT"
-assert_output_contains "typed" "keyboard type response"
+assert_output_contains "OK" "keyboard type response"
 
 # Verify the text was typed correctly
 pt_ok eval "document.querySelector('#username').value"
-assert_json_field ".result" "$LONG_TEXT" "long string typed correctly"
+assert_output_contains "$LONG_TEXT" "long string typed correctly"
 
 end_test
 
@@ -220,7 +218,7 @@ start_test "pinchtab wait --not-text (immediate, absent)"
 # Text that never existed — should succeed immediately.
 pt_ok nav "${FIXTURES_URL}/buttons.html"
 pt_ok wait --not-text "nonexistent-text-xyz" --timeout 2000
-assert_output_contains "waited" "wait response present"
+assert_output_contains "OK" "wait response present"
 
 end_test
 
@@ -231,16 +229,134 @@ start_test "pinchtab wait --not-text (after DOM change)"
 pt_ok nav "${FIXTURES_URL}/buttons.html"
 pt_ok click --css "#toggle-btn"
 pt_ok wait --not-text "This content can be toggled." --timeout 5000
-assert_output_contains "waited" "wait returned after text disappeared"
+assert_output_contains "OK" "wait returned after text disappeared"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab wait --not-text (timeout when text persists)"
 
-# Text stays on page — command should return (200) with waited=false.
+# Text stays on page — command should timeout (exit code 4).
 pt_ok nav "${FIXTURES_URL}/buttons.html"
-pt_ok wait --not-text "Increment" --timeout 500
-assert_output_contains "timeout" "timeout reported when text persists"
+pt wait --not-text "Increment" --timeout 500
+# Expect non-zero exit due to timeout
+if [ "$PT_CODE" -ne 0 ]; then
+  echo -e "  ${GREEN}✓${NC} timeout reported when text persists (exit $PT_CODE)"
+  ((ASSERTIONS_PASSED++)) || true
+else
+  echo -e "  ${RED}✗${NC} expected timeout, got success"
+  ((ASSERTIONS_FAILED++)) || true
+fi
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab click --snap"
+
+pt_ok nav "${FIXTURES_URL}/buttons.html"
+pt_ok click --css "#increment" --snap
+
+# Output should contain OK and snapshot content
+assert_output_contains "OK" "click succeeded"
+assert_output_contains "button" "snapshot contains button element"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab nav --snap"
+
+pt_ok nav "${FIXTURES_URL}/form.html" --snap
+
+# Output should contain tab ID and snapshot
+assert_output_contains "textbox" "snapshot contains form input"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab fill --snap"
+
+pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok fill "#username" "testuser" --snap
+
+# Output should contain OK and snapshot
+assert_output_contains "OK" "fill succeeded"
+assert_output_contains "textbox" "snapshot contains form input"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab select --snap"
+
+pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok select "#country" "us" --snap
+
+# Output should contain OK and snapshot
+assert_output_contains "OK" "select succeeded"
+assert_output_contains "combobox" "snapshot contains select element"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab back --snap"
+
+pt_ok nav "${FIXTURES_URL}/index.html"
+pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok back --snap
+
+# Output should contain URL and snapshot
+assert_output_contains "index.html" "back navigated to previous URL"
+assert_output_contains "link" "snapshot contains navigation elements"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab forward --snap"
+
+pt_ok nav "${FIXTURES_URL}/index.html"
+pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok back
+pt_ok forward --snap
+
+# Output should contain URL and snapshot
+assert_output_contains "form.html" "forward navigated to next URL"
+assert_output_contains "textbox" "snapshot contains form input"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab reload --snap"
+
+pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok reload --snap
+
+# Output should contain OK and snapshot
+assert_output_contains "OK" "reload succeeded"
+assert_output_contains "textbox" "snapshot contains form input"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab click --snap-diff"
+
+pt_ok nav "${FIXTURES_URL}/buttons.html"
+pt_ok snap  # establish baseline
+pt_ok click --css "#increment" --snap-diff
+
+# Output should contain OK and compact diff format (+N ~N -N)
+assert_output_contains "OK" "click succeeded"
+assert_output_contains "~" "snap-diff shows changes"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab fill --snap-diff"
+
+pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok snap  # establish baseline
+pt_ok fill "#username" "diffuser" --snap-diff
+
+# Output should contain OK and compact diff format (+N ~N -N)
+assert_output_contains "OK" "fill succeeded"
+assert_output_contains "~" "snap-diff shows changes"
 
 end_test

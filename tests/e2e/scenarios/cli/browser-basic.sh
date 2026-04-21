@@ -8,15 +8,15 @@ source "${GROUP_DIR}/../../helpers/cli.sh"
 start_test "pinchtab health"
 
 pt_ok health
-assert_output_json
-assert_output_contains "status" "returns status field"
+# Terse mode outputs "ok" on success
+assert_output_contains "ok" "returns ok status"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab instances"
 
-pt_ok instances
+pt_ok instances --json
 assert_output_json
 # Output is an array like [{id:..., status:...}], check for instance properties
 assert_output_contains "id" "returns instance id"
@@ -85,7 +85,8 @@ end_test
 start_test "pinchtab snap"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
-pt_ok snap
+# --full gives JSON (the default snap output is now compact text)
+pt_ok snap --full
 assert_output_json
 assert_output_contains "nodes" "returns snapshot nodes"
 
@@ -135,8 +136,45 @@ start_test "pinchtab text"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
 pt_ok text
+# Default output is plain text (no JSON wrapper)
+assert_output_contains "Welcome" "returns page text"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab text --json"
+
+pt_ok text --json
 assert_output_json
-assert_output_contains "text" "returns text field"
+assert_output_contains "text" "returns JSON with text field"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab text -s <selector>"
+
+pt_ok nav "${FIXTURES_URL}/index.html"
+pt_ok text -s "#welcome"
+# Default output is plain text
+assert_output_contains "Welcome" "extracts text from element"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab text <ref>"
+
+pt_ok nav "${FIXTURES_URL}/index.html"
+# -i keeps the interactive filter; --compact=false forces JSON for jq parsing
+pt_ok snap -i --compact=false
+# Extract a ref from the snapshot (first link)
+REF=$(echo "$PT_OUT" | safe_jq -r '.nodes[] | select(.role == "link") | .ref' | head -1)
+if [ -n "$REF" ] && [ "$REF" != "null" ]; then
+  pt_ok text "$REF"
+  # Default output is plain text
+  assert_output_not_contains "{" "returns plain text, not JSON"
+else
+  echo -e "  ${YELLOW}⚠${NC} Could not extract ref from snapshot, skipping"
+fi
 
 end_test
 

@@ -9,14 +9,14 @@ start_test "pinchtab cache clear"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
 pt_ok cache clear
-assert_output_contains "cleared" "cache clear response"
+assert_output_contains "OK" "cache clear response"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab cache status"
 
-pt_ok cache status
+pt_ok cache status --json
 assert_json_field ".canClear" "true" "cache can be cleared"
 
 end_test
@@ -26,6 +26,6 @@ start_test "pinchtab cache clear is idempotent"
 
 pt_ok cache clear
 pt_ok cache clear
-assert_output_contains "cleared" "cache clear works multiple times"
+assert_output_contains "OK" "cache clear works multiple times"
 
 end_test

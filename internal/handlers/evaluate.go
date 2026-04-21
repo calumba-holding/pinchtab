@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
@@ -72,6 +73,16 @@ func (h *Handlers) HandleEvaluate(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err := h.evalRuntime(tCtx, req.Expression, &result, opts...); err != nil {
+		errMsg := err.Error()
+		// Add helpful hints for common JavaScript errors
+		if strings.Contains(errMsg, "Cannot read properties of null") ||
+			strings.Contains(errMsg, "Cannot read property") ||
+			strings.Contains(errMsg, "null is not an object") {
+			httpx.ErrorCode(w, 500, "evaluate_null_ref", fmt.Sprintf("evaluate: %s", errMsg), false, map[string]any{
+				"hint": "querySelector returned null — the element doesn't exist. Use snapshot refs (e0, e1, ...) instead of raw selectors.",
+			})
+			return
+		}
 		httpx.Error(w, 500, fmt.Errorf("evaluate: %w", err))
 		return
 	}

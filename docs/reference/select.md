@@ -8,14 +8,21 @@ curl -X POST http://localhost:9867/action \
   -d '{"kind":"select","ref":"e12","value":"it"}'
 # CLI Alternative
 pinchtab select e12 it
-# Response
-{
-  "success": true,
-  "result": {
-    "success": true
-  }
-}
+# Response (use --json for full JSON)
+OK
 ```
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--snap` | Output snapshot after select |
+| `--snap-diff` | Output snapshot diff after select |
+| `--text` | Output page text after select |
+| `--json` | Full JSON response |
+| `--tab` | Target specific tab |
+
+## Option Matching
 
 Matching is forgiving. PinchTab tries these strategies in order:
 
@@ -24,7 +31,7 @@ Matching is forgiving. PinchTab tries these strategies in order:
 3. case-insensitive visible text
 4. case-insensitive substring of visible text
 
-That means all of these can work depending on the page:
+All of these can work depending on the page:
 
 ```bash
 pinchtab select e12 uk
@@ -33,11 +40,9 @@ pinchtab select e12 "united kingdom"
 pinchtab select e12 "Kingdom"
 ```
 
-Prefer the canonical option value or the full visible text when disambiguation
-matters. The raw action endpoint accepts `ref` or `selector`, and the CLI
-accepts the same unified selector forms as the other action commands.
+Prefer the canonical option value or full visible text when disambiguation matters.
 
-Selector lookup is limited to the current frame scope. The default scope is `main`; use [`/frame`](./frame.md) or `pinchtab frame` before selector-based iframe selects.
+Selector lookup is limited to current frame scope (default: `main`). Use [`/frame`](./frame.md) before iframe selects.
 
 ## Related Pages
 

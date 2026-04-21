@@ -3,19 +3,50 @@ package actions
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pinchtab/pinchtab/internal/cli"
-	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
 	"io"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
+	"github.com/pinchtab/pinchtab/internal/cli/output"
+	"github.com/spf13/cobra"
 )
 
-func Health(client *http.Client, base, token string) {
-	apiclient.DoGet(client, base, token, "/health", nil)
+func Health(client *http.Client, base, token string, cmd *cobra.Command) {
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		apiclient.DoGet(client, base, token, "/health", nil)
+		return
+	}
+
+	// Terse: "ok" or "degraded: <reason>"
+	body := apiclient.DoGetRaw(client, base, token, "/health", nil)
+	var result map[string]any
+	if err := json.Unmarshal(body, &result); err != nil {
+		output.Value("ok")
+		return
+	}
+	status, _ := result["status"].(string)
+	if status == "ok" {
+		output.Value("ok")
+	} else {
+		reason, _ := result["reason"].(string)
+		if reason != "" {
+			output.Value("degraded: " + reason)
+		} else {
+			output.Value(status)
+		}
+	}
 }
 
-func Instances(client *http.Client, base, token string) {
+func Instances(client *http.Client, base, token string, cmd *cobra.Command) {
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		apiclient.DoGet(client, base, token, "/instances", nil)
+		return
+	}
+
 	body := apiclient.DoGetRaw(client, base, token, "/instances", nil)
 
 	instances, err := decodeInstancesResponse(body)
@@ -24,9 +55,13 @@ func Instances(client *http.Client, base, token string) {
 		os.Exit(1)
 	}
 
-	// Transform to cleaner output format
-	output := make([]map[string]any, len(instances))
-	for i, inst := range instances {
+	if len(instances) == 0 {
+		fmt.Println("No instances running")
+		return
+	}
+
+	// Human-readable: id  port  mode  status
+	for _, inst := range instances {
 		id, _ := inst["id"].(string)
 		port, _ := inst["port"].(string)
 		headless, _ := inst["headless"].(bool)
@@ -37,38 +72,45 @@ func Instances(client *http.Client, base, token string) {
 			mode = "headed"
 		}
 
-		output[i] = map[string]any{
-			"id":     id,
-			"port":   port,
-			"mode":   mode,
-			"status": status,
-		}
+		fmt.Printf("%s\t%s\t%s\t%s\n", id, port, mode, status)
 	}
-
-	// Output as JSON
-	data, _ := json.MarshalIndent(output, "", "  ")
-	fmt.Println(string(data))
 }
 
 // --- profiles ---
 
-func Profiles(client *http.Client, base, token string) {
-	result := apiclient.DoGet(client, base, token, "/profiles", nil)
-
-	// Display profiles in a friendly format
-	if profiles, ok := result["profiles"].([]interface{}); ok && len(profiles) > 0 {
-		fmt.Println()
-		for _, prof := range profiles {
-			if m, ok := prof.(map[string]any); ok {
-				name, _ := m["name"].(string)
-
-				fmt.Printf("%s %s\n", cli.StyleStdout(cli.ValueStyle, "profile:"), name)
-			}
-		}
-		fmt.Println()
-	} else {
-		fmt.Println("No profiles available")
+func Profiles(client *http.Client, base, token string, cmd *cobra.Command) {
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		apiclient.DoGet(client, base, token, "/profiles", nil)
+		return
 	}
+
+	body := apiclient.DoGetRaw(client, base, token, "/profiles", nil)
+
+	profiles, err := decodeProfilesResponse(body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to parse profiles: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(profiles) == 0 {
+		fmt.Println("No profiles available")
+		return
+	}
+
+	for _, prof := range profiles {
+		id, _ := prof["id"].(string)
+		name, _ := prof["name"].(string)
+		fmt.Printf("%s\t%s\n", id, name)
+	}
+}
+
+func decodeProfilesResponse(body []byte) ([]map[string]any, error) {
+	var profiles []map[string]any
+	if err := json.Unmarshal(body, &profiles); err == nil {
+		return profiles, nil
+	}
+	return nil, fmt.Errorf("expected /profiles to return a JSON array")
 }
 
 // --- internal helpers ---

@@ -64,7 +64,7 @@ end_test
 start_test "pinchtab storage get --tab reads storage for specific tab"
 
 # Get the actual tab ID from tabs list
-pt_cli tabs list
+pt_cli tabs list --json
 TAB_ID=""
 if [ "$PT_CODE" -eq 0 ]; then
   TAB_ID=$(echo "$PT_OUT" | safe_jq -r '.tabs[0].id // empty' 2>/dev/null)

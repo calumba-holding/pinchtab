@@ -9,7 +9,7 @@ start_test "pinchtab fill <selector> <text>"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
 pt_ok fill "#username" "hello world"
-assert_output_contains "filled" "confirms fill action"
+assert_output_contains "OK" "confirms fill action"
 
 end_test
 
@@ -32,7 +32,8 @@ end_test
 start_test "pinchtab hover <ref>"
 
 pt_ok nav "${FIXTURES_URL}/buttons.html"
-pt_ok snap
+# --full gives JSON (the default snap output is now compact text)
+pt_ok snap --full
 
 # Pick a stable, interactive element ref instead of the first arbitrary ref.
 REF=$(find_ref_by_name "Increment" "$PT_OUT")
@@ -56,39 +57,47 @@ end_test
 start_test "pinchtab mouse move/down/up/wheel"
 
 pt_ok nav "${FIXTURES_URL}/mouse-events.html"
-pt_ok snap --interactive
+# --compact=false gives JSON; --interactive keeps the element filter
+pt_ok snap --interactive --compact=false
 
 MOUSE_REF=$(find_ref_by_name "Mouse Target" "$PT_OUT")
 if assert_ref_found "$MOUSE_REF" "mouse target ref"; then
   pt_ok mouse move "$MOUSE_REF"
-  assert_output_contains "moved" "confirms mouse move action"
+  assert_output_contains "OK" "confirms mouse move action"
 
   pt_ok mouse down --button left
-  assert_output_contains "down" "confirms mouse down action"
+  assert_output_contains "OK" "confirms mouse down action"
 
   pt_ok mouse up --button left
-  assert_output_contains "up" "confirms mouse up action"
+  assert_output_contains "OK" "confirms mouse up action"
 
   pt_ok mouse wheel 240 --dx 40
-  assert_output_contains "wheel" "confirms mouse wheel action"
+  assert_output_contains "OK" "confirms mouse wheel action"
 
   pt_ok eval "window.mouseFixtureState.mousemoveCount"
-  assert_output_jq '.result >= 1' "mousemove count incremented" "mousemove count did not increment"
+  # Terse output is just the number
+  if [[ "$PT_OUT" =~ ^[0-9]+$ ]] && [ "$PT_OUT" -ge 1 ]; then
+    echo -e "  ${GREEN}✓${NC} mousemove count incremented"
+    ((ASSERTIONS_PASSED++)) || true
+  else
+    echo -e "  ${RED}✗${NC} mousemove count did not increment"
+    ((ASSERTIONS_FAILED++)) || true
+  fi
 
   pt_ok eval "window.mouseFixtureState.mousedownCount"
-  assert_json_field ".result" "1" "mousedown count is 1"
+  assert_output_contains "1" "mousedown count is 1"
 
   pt_ok eval "window.mouseFixtureState.mouseupCount"
-  assert_json_field ".result" "1" "mouseup count is 1"
+  assert_output_contains "1" "mouseup count is 1"
 
   pt_ok eval "window.mouseFixtureState.lastButton"
-  assert_json_field ".result" "left" "last button is left"
+  assert_output_contains "left" "last button is left"
 
   pt_ok eval "window.mouseFixtureState.wheelCount"
-  assert_json_field ".result" "1" "wheel count is 1"
+  assert_output_contains "1" "wheel count is 1"
 
   pt_ok eval "window.mouseFixtureState.wheelDeltaY"
-  assert_json_field ".result" "240" "wheel delta Y accumulated"
+  assert_output_contains "240" "wheel delta Y accumulated"
 fi
 
 end_test
@@ -97,21 +106,28 @@ end_test
 start_test "pinchtab drag <from> <to>"
 
 pt_ok nav "${FIXTURES_URL}/mouse-events.html"
-pt_ok snap --interactive
+pt_ok snap --interactive --compact=false
 
 DRAG_REF=$(find_ref_by_name "Mouse Target" "$PT_OUT")
 if assert_ref_found "$DRAG_REF" "drag target ref"; then
   pt_ok drag "$DRAG_REF" "160,190"
-  assert_output_contains "up" "confirms drag wrapper completed"
+  assert_output_contains "OK" "confirms drag wrapper completed"
 
   pt_ok eval "window.mouseFixtureState.mousemoveCount"
-  assert_output_jq '.result >= 2' "drag performs multiple move events" "drag did not perform multiple move events"
+  # Terse output is just the number
+  if [[ "$PT_OUT" =~ ^[0-9]+$ ]] && [ "$PT_OUT" -ge 2 ]; then
+    echo -e "  ${GREEN}✓${NC} drag performs multiple move events"
+    ((ASSERTIONS_PASSED++)) || true
+  else
+    echo -e "  ${RED}✗${NC} drag did not perform multiple move events"
+    ((ASSERTIONS_FAILED++)) || true
+  fi
 
   pt_ok eval "window.mouseFixtureState.mousedownCount"
-  assert_json_field ".result" "1" "drag performed one mouse down"
+  assert_output_contains "1" "drag performed one mouse down"
 
   pt_ok eval "window.mouseFixtureState.mouseupCount"
-  assert_json_field ".result" "1" "drag performed one mouse up"
+  assert_output_contains "1" "drag performed one mouse up"
 fi
 
 end_test
@@ -122,16 +138,16 @@ start_test "pinchtab check/uncheck <selector>"
 pt_ok nav "${FIXTURES_URL}/form.html"
 
 pt_ok check "#terms"
-assert_json_field ".result.checked" "true" "check marks the checkbox"
+assert_output_contains "OK" "check marks the checkbox"
 
 pt_ok eval "document.querySelector('#terms').checked"
-assert_json_field ".result" "true" "DOM checkbox state is checked"
+assert_output_contains "true" "DOM checkbox state is checked"
 
 pt_ok uncheck "#terms"
-assert_json_field ".result.checked" "false" "uncheck clears the checkbox"
+assert_output_contains "OK" "uncheck clears the checkbox"
 
 pt_ok eval "document.querySelector('#terms').checked"
-assert_json_field ".result" "false" "DOM checkbox state is unchecked"
+assert_output_contains "false" "DOM checkbox state is unchecked"
 
 end_test
 
@@ -147,16 +163,16 @@ end_test
 start_test "pinchtab focus <ref>"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
-pt_ok snap --interactive
+pt_ok snap --interactive --compact=false
 
 USERNAME_REF=$(find_ref_by_role_and_name "textbox" "Username:" "$PT_OUT")
 if assert_ref_found "$USERNAME_REF" "username input ref"; then
   pt_ok focus "$USERNAME_REF"
-  assert_output_contains "focused" "confirms focus action"
+  assert_output_contains "OK" "confirms focus action"
 
   # Verify the element is now focused
   pt_ok eval "document.activeElement.id"
-  assert_json_field ".result" "username" "username input is focused"
+  assert_output_contains "username" "username input is focused"
 fi
 
 end_test
@@ -167,10 +183,10 @@ start_test "pinchtab focus --css <selector>"
 pt_ok nav "${FIXTURES_URL}/form.html"
 
 pt_ok focus --css "#email"
-assert_output_contains "focused" "confirms focus by CSS selector"
+assert_output_contains "OK" "confirms focus by CSS selector"
 
 # Verify the element is now focused
 pt_ok eval "document.activeElement.id"
-assert_json_field ".result" "email" "email input is focused"
+assert_output_contains "email" "email input is focused"
 
 end_test

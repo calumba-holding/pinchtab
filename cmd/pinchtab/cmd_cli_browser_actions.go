@@ -169,7 +169,7 @@ var dialogAcceptCmd = &cobra.Command{
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		runCLI(func(rt cliRuntime) {
-			browseractions.Dialog(rt.client, rt.base, rt.token, "accept", optionalArg(args), stringFlag(cmd, "tab"))
+			browseractions.Dialog(rt.client, rt.base, rt.token, "accept", optionalArg(args), cmd)
 		})
 	},
 }
@@ -179,7 +179,7 @@ var dialogDismissCmd = &cobra.Command{
 	Short: "Dismiss (Cancel) the current dialog",
 	Run: func(cmd *cobra.Command, args []string) {
 		runCLI(func(rt cliRuntime) {
-			browseractions.Dialog(rt.client, rt.base, rt.token, "dismiss", "", stringFlag(cmd, "tab"))
+			browseractions.Dialog(rt.client, rt.base, rt.token, "dismiss", "", cmd)
 		})
 	},
 }

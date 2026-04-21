@@ -9,11 +9,14 @@ import (
 
 func Snapshot(client *http.Client, base, token string, cmd *cobra.Command) {
 	params := url.Values{}
-	if v, _ := cmd.Flags().GetBool("interactive"); v {
-		params.Set("filter", "interactive")
-	}
-	if v, _ := cmd.Flags().GetBool("compact"); v {
-		params.Set("format", "compact")
+	full, _ := cmd.Flags().GetBool("full")
+	if !full {
+		if v, _ := cmd.Flags().GetBool("interactive"); v {
+			params.Set("filter", "interactive")
+		}
+		if v, _ := cmd.Flags().GetBool("compact"); v {
+			params.Set("format", "compact")
+		}
 	}
 	if v, _ := cmd.Flags().GetBool("text"); v {
 		params.Set("format", "text")

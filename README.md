@@ -315,6 +315,24 @@ Read more in the [Core Concepts](https://pinchtab.com/docs/core-concepts) guide.
 | **Multi-instance** | ✅ |
 | **External Chrome attach** | ✅ |
 
+### Benchmark: PinchTab vs agent-browser
+
+Measured end-to-end agent-loop token cost (Anthropic API), percentages
+read as "PinchTab is N% cheaper than agent-browser on this metric":
+
+| Scope                     | Cost cheaper | Fewer requests | Fewer tokens |
+|---------------------------|-------------:|---------------:|-------------:|
+| Basic Haiku (10 steps)    | **9.5%**     | 23.0%          | 17.9%        |
+| Extended Haiku (24 steps) | **19.6%**    | 31.1%          | 26.2%        |
+| Extended Sonnet (24 steps)| **20.3%**    | 29.4%          | 25.3%        |
+
+The cost gap widens with workload length (click→snapshot round trips
+compound) and is roughly model-invariant at extended scope.
+
+See the [benchmark summary](./docs/benchmark.md) for an overview, or the
+[benchmark deep dive](./docs/deep-dive/benchmark.md) for full
+methodology, per-run tables, and raw logs.
+
 ---
 
 ## Privacy

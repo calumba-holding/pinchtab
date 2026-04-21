@@ -21,13 +21,32 @@ func handleNavigate(c *Client) func(context.Context, mcp.CallToolRequest) (*mcp.
 			return mcp.NewToolResultError("invalid URL: " + err.Error()), nil
 		}
 		payload := map[string]any{"url": safeURL}
-		if tabID := optString(r, "tabId"); tabID != "" {
+		tabID := optString(r, "tabId")
+		if tabID != "" {
 			payload["tabId"] = tabID
 		}
 		body, code, err := c.Post(ctx, "/navigate", payload)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
+		if code >= 400 {
+			return resultFromBytes(body, code)
+		}
+
+		// If snap=true, append interactive compact snapshot
+		if snap, ok := optBool(r, "snap"); ok && snap {
+			q := url.Values{}
+			q.Set("filter", "interactive")
+			q.Set("format", "compact")
+			if tabID != "" {
+				q.Set("tabId", tabID)
+			}
+			snapBody, _, snapErr := c.Get(ctx, "/snapshot", q)
+			if snapErr == nil {
+				return mcp.NewToolResultText(string(body) + "\n" + string(snapBody)), nil
+			}
+		}
+
 		return resultFromBytes(body, code)
 	}
 }

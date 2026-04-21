@@ -56,6 +56,24 @@ func DoGetRaw(client *http.Client, base, token, path string, params url.Values) 
 	return body
 }
 
+// DoGetRawAndPrint fetches and prints the raw response body (for --snap flag).
+func DoGetRawAndPrint(client *http.Client, base, token, pathWithQuery string) {
+	req, _ := http.NewRequest("GET", base+pathWithQuery, nil)
+	setClientHeaders(req, token)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "snapshot failed: %v\n", err)
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		fmt.Fprintf(os.Stderr, "snapshot error %d: %s\n", resp.StatusCode, string(body))
+		return
+	}
+	fmt.Println(string(body))
+}
+
 func DoPost(client *http.Client, base, token, path string, body map[string]any) map[string]any {
 	return DoPostWithHeaders(client, base, token, path, body, nil)
 }
@@ -64,10 +82,18 @@ func DoPost(client *http.Client, base, token, path string, body map[string]any) 
 // responsible for rendering whatever output is appropriate (e.g. a single
 // field for machine-friendly piping).
 func DoPostQuiet(client *http.Client, base, token, path string, body map[string]any) map[string]any {
+	return DoPostQuietWithHeaders(client, base, token, path, body, nil)
+}
+
+// DoPostQuietWithHeaders is like DoPostQuiet but allows custom headers.
+func DoPostQuietWithHeaders(client *http.Client, base, token, path string, body map[string]any, headers map[string]string) map[string]any {
 	data, _ := json.Marshal(body)
 	req, _ := http.NewRequest("POST", base+path, bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
 	setClientHeaders(req, token)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		fatal("Request failed: %v", err)

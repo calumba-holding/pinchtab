@@ -12,9 +12,20 @@ In PinchTab:
 
 ```bash
 curl http://localhost:9867/profiles
-# CLI Alternative
+# Response: JSON array (see below)
+
+# CLI Alternative (human-readable by default)
 pinchtab profiles
-# Response
+# Output: prof_278be873  work
+
+pinchtab profiles --json              # Full JSON response
+```
+
+`pinchtab profiles` is the simplest way to see available profiles from the CLI.
+
+Response shape:
+
+```json
 [
   {
     "id": "prof_278be873",
@@ -34,7 +45,6 @@ Notes:
 
 - `GET /profiles` excludes temporary auto-generated instance profiles by default
 - use `GET /profiles?all=true` to include temporary profiles
-- `pinchtab profiles` exists, but the HTTP API is the more reliable source of truth for structured output
 
 ## Get One Profile
 

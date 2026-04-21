@@ -7,7 +7,7 @@ source "${GROUP_DIR}/../../helpers/cli.sh"
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab instance logs"
 
-pt_ok health
+pt_ok health --json
 INSTANCE_ID=$(echo "$PT_OUT" | jq -r '.defaultInstance.id // empty')
 
 if [ -n "$INSTANCE_ID" ]; then
@@ -249,11 +249,11 @@ start_test "pinchtab activity"
 pt_ok nav "${FIXTURES_URL}/buttons.html"
 TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
-pt_ok snap --tab "$TAB_ID"
+pt_ok snap --tab "$TAB_ID" --full
 assert_output_json "snapshot output is valid JSON"
 
 pt_ok click --tab "$TAB_ID" "#increment"
-assert_output_contains "clicked" "click command completed"
+assert_output_contains "OK" "click command completed"
 
 pt_ok activity --limit 100
 assert_output_json "activity output is valid JSON"

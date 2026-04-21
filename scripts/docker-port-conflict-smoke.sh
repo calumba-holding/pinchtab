@@ -21,7 +21,7 @@ trap cleanup EXIT
 echo "Building Ubuntu + Chrome for Testing smoke image..."
 docker build \
   --platform linux/amd64 \
-  -f tests/docker/chrome-cft-smoke.Dockerfile \
+  -f tests/tools/docker/chrome-cft-smoke.Dockerfile \
   -t "$IMAGE" \
   .
 

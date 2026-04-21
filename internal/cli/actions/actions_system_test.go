@@ -2,7 +2,15 @@ package actions
 
 import (
 	"testing"
+
+	"github.com/spf13/cobra"
 )
+
+func newHealthCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("json", false, "")
+	return cmd
+}
 
 func TestHealth(t *testing.T) {
 	m := newMockServer()
@@ -10,7 +18,8 @@ func TestHealth(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Health(client, m.base(), "")
+	cmd := newHealthCmd()
+	Health(client, m.base(), "", cmd)
 	if m.lastPath != "/health" {
 		t.Errorf("expected /health, got %s", m.lastPath)
 	}
@@ -21,7 +30,8 @@ func TestAuthHeader(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Health(client, m.base(), "my-secret-token")
+	cmd := newHealthCmd()
+	Health(client, m.base(), "my-secret-token", cmd)
 	auth := m.lastHeaders.Get("Authorization")
 	if auth != "Bearer my-secret-token" {
 		t.Errorf("expected 'Bearer my-secret-token', got %q", auth)
@@ -33,7 +43,8 @@ func TestNoAuthHeader(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Health(client, m.base(), "")
+	cmd := newHealthCmd()
+	Health(client, m.base(), "", cmd)
 	auth := m.lastHeaders.Get("Authorization")
 	if auth != "" {
 		t.Errorf("expected no auth header, got %q", auth)

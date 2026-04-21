@@ -10,7 +10,7 @@ start_test "pinchtab scroll <pixels>"
 pt_ok nav "${FIXTURES_URL}/table.html"
 
 pt_ok scroll 100
-assert_output_contains "scrolled" "confirms scroll action"
+assert_output_contains "OK" "confirms scroll action"
 
 end_test
 
@@ -18,10 +18,10 @@ end_test
 start_test "pinchtab scroll down/up"
 
 pt_ok scroll down
-assert_output_contains "scrolled" "scroll down succeeded"
+assert_output_contains "OK" "scroll down succeeded"
 
 pt_ok scroll up
-assert_output_contains "scrolled" "scroll up succeeded"
+assert_output_contains "OK" "scroll up succeeded"
 
 end_test
 
@@ -118,7 +118,7 @@ start_test "redirects: follow single redirect"
 
 pt_ok nav "${FIXTURES_URL}/redirect/1"
 pt_ok snap
-assert_json_field_contains ".url" "fixtures/get" "landed on /get after redirect"
+assert_output_contains "fixtures/get" "landed on /get after redirect"
 
 end_test
 
@@ -127,7 +127,7 @@ start_test "redirects: follow multiple redirects"
 
 pt_ok nav "${FIXTURES_URL}/redirect/3"
 pt_ok snap
-assert_json_field_contains ".url" "fixtures/get" "multiple redirects followed to /get"
+assert_output_contains "fixtures/get" "multiple redirects followed to /get"
 
 end_test
 
@@ -136,7 +136,8 @@ start_test "pinchtab find (basic)"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
 pt_ok find "username"
-assert_output_contains "ref" "has ref in output"
+# Output format: e1<tab>textbox<tab>"Username:"
+assert_output_contains "e1" "has ref in output"
 
 end_test
 

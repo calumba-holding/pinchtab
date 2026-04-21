@@ -34,6 +34,11 @@ COMMANDS=(
   "  api-extended:🐳:API extended (multi-instance)"
   "  cli-extended:🐳:CLI extended tests"
   "  infra-extended:🐳:Infra extended (multi-instance)"
+  "opt:⚡:Optimization baseline"
+  "  baseline:⚡:Run optimization baseline lane"
+  "bench:📊:Benchmark lanes"
+  "  pinchtab:📊:Run PinchTab benchmark via Anthropic Messages API"
+  "  agent-browser:📊:Run agent-browser benchmark via Anthropic Messages API"
   "doctor:🩺:Setup dev environment"
   "check go:🧪:Go only"
   "check dashboard:🧪:Dashboard only"
@@ -158,6 +163,28 @@ run_command() {
       echo "  ${ACCENT}${BOLD}💨 Docker smoke test${NC}"
       echo ""
       exec bash scripts/docker-smoke.sh "$image"
+      ;;
+    "opt")
+      echo "  ${ACCENT}${BOLD}⚡ Optimization${NC}"
+      echo ""
+      exec bash scripts/dev-opt.sh help
+      ;;
+    "opt "*)
+      echo "  ${ACCENT}${BOLD}⚡ Optimization${NC}"
+      echo ""
+      local opt_args="${target#opt }"
+      exec bash scripts/dev-opt.sh ${opt_args}
+      ;;
+    "bench")
+      echo "  ${ACCENT}${BOLD}📊 Benchmark${NC}"
+      echo ""
+      exec bash scripts/dev-bench.sh help
+      ;;
+    "bench "*)
+      echo "  ${ACCENT}${BOLD}📊 Benchmark${NC}"
+      echo ""
+      local bench_args="${target#bench }"
+      exec bash scripts/dev-bench.sh ${bench_args}
       ;;
     "e2e"*)
       local suite="release"
@@ -304,6 +331,20 @@ if [ $# -gt 0 ]; then
         run_command "binary $2"
       else
         run_command "binary"
+      fi
+      ;;
+    opt)
+      if [ $# -gt 1 ]; then
+        exec bash scripts/dev-opt.sh "${@:2}"
+      else
+        exec bash scripts/dev-opt.sh help
+      fi
+      ;;
+    bench)
+      if [ $# -gt 1 ]; then
+        exec bash scripts/dev-bench.sh "${@:2}"
+      else
+        exec bash scripts/dev-bench.sh help
       fi
       ;;
     *) run_command "$1" ;;

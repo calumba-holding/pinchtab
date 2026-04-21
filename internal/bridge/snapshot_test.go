@@ -134,11 +134,106 @@ func TestBuildSnapshotInteractiveFilter(t *testing.T) {
 
 	flat, _ := BuildSnapshot(nodes, FilterInteractive, -1)
 
-	if len(flat) != 1 {
-		t.Fatalf("expected 1 interactive node, got %d: %+v", len(flat), flat)
+	// FilterInteractive keeps InteractiveRoles AND ContextRoles (headings,
+	// paragraphs, StaticText, etc.) so agents get structural context without a
+	// follow-up page-text fetch. The container WebArea is still filtered out.
+	if len(flat) != 2 {
+		t.Fatalf("expected 2 nodes (heading + button), got %d: %+v", len(flat), flat)
 	}
-	if flat[0].Role != "button" {
-		t.Errorf("expected button, got %s", flat[0].Role)
+	if flat[0].Role != "heading" {
+		t.Errorf("expected heading first, got %s", flat[0].Role)
+	}
+	if flat[1].Role != "button" {
+		t.Errorf("expected button second, got %s", flat[1].Role)
+	}
+}
+
+func TestBuildSnapshotInteractiveExcludesLandmarks(t *testing.T) {
+	// The relaxed interactive filter must NOT include landmark-only roles
+	// (banner, main, navigation, region) which bloat output without adding
+	// content — the agent infers structure from heading nesting instead.
+	nodes := []RawAXNode{
+		{
+			NodeID:           "root",
+			Role:             &RawAXValue{Value: json.RawMessage(`"WebArea"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"Page"`)},
+			ChildIDs:         []string{"nav", "main", "btn"},
+			BackendDOMNodeID: 1,
+		},
+		{
+			NodeID:           "nav",
+			Role:             &RawAXValue{Value: json.RawMessage(`"navigation"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"Primary"`)},
+			BackendDOMNodeID: 10,
+		},
+		{
+			NodeID:           "main",
+			Role:             &RawAXValue{Value: json.RawMessage(`"main"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"Content"`)},
+			BackendDOMNodeID: 11,
+		},
+		{
+			NodeID:           "btn",
+			Role:             &RawAXValue{Value: json.RawMessage(`"button"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"Go"`)},
+			BackendDOMNodeID: 12,
+		},
+	}
+
+	flat, _ := BuildSnapshot(nodes, FilterInteractive, -1)
+
+	for _, n := range flat {
+		if n.Role == "navigation" || n.Role == "main" || n.Role == "banner" || n.Role == "region" {
+			t.Errorf("landmark role %q leaked into interactive snapshot: %+v", n.Role, n)
+		}
+	}
+	// Only the button should pass the filter here.
+	if len(flat) != 1 || flat[0].Role != "button" {
+		t.Fatalf("expected exactly [button], got %+v", flat)
+	}
+}
+
+func TestBuildSnapshotInteractiveIncludesContext(t *testing.T) {
+	// Directly assert each ContextRole we care about is preserved by
+	// FilterInteractive. If someone adds/removes a role to ContextRoles
+	// without updating this test, they'll catch it immediately.
+	roleNames := []string{"heading", "image", "cell", "columnheader", "rowheader"}
+	nodes := []RawAXNode{
+		{
+			NodeID:           "root",
+			Role:             &RawAXValue{Value: json.RawMessage(`"WebArea"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"Page"`)},
+			ChildIDs:         []string{"h", "i", "c", "ch", "rh"},
+			BackendDOMNodeID: 1,
+		},
+		{NodeID: "h", Role: &RawAXValue{Value: json.RawMessage(`"heading"`)}, Name: &RawAXValue{Value: json.RawMessage(`"H"`)}, BackendDOMNodeID: 10},
+		{NodeID: "i", Role: &RawAXValue{Value: json.RawMessage(`"image"`)}, Name: &RawAXValue{Value: json.RawMessage(`"Img"`)}, BackendDOMNodeID: 11},
+		{NodeID: "c", Role: &RawAXValue{Value: json.RawMessage(`"cell"`)}, Name: &RawAXValue{Value: json.RawMessage(`"Cell"`)}, BackendDOMNodeID: 12},
+		{NodeID: "ch", Role: &RawAXValue{Value: json.RawMessage(`"columnheader"`)}, Name: &RawAXValue{Value: json.RawMessage(`"Col"`)}, BackendDOMNodeID: 13},
+		{NodeID: "rh", Role: &RawAXValue{Value: json.RawMessage(`"rowheader"`)}, Name: &RawAXValue{Value: json.RawMessage(`"Row"`)}, BackendDOMNodeID: 14},
+	}
+
+	flat, _ := BuildSnapshot(nodes, FilterInteractive, -1)
+
+	gotRoles := make(map[string]bool, len(flat))
+	for _, n := range flat {
+		gotRoles[n.Role] = true
+	}
+	for _, want := range roleNames {
+		if !gotRoles[want] {
+			t.Errorf("context role %q dropped by interactive filter; got roles %v", want, gotRoles)
+		}
+	}
+}
+
+func TestContextRolesDoesNotOverlapInteractiveRoles(t *testing.T) {
+	// Guardrail: ContextRoles is a parallel set for structural context.
+	// If a role shifts into InteractiveRoles, the dual registration will
+	// silently duplicate behavior and make future audits harder — surface it.
+	for r := range ContextRoles {
+		if InteractiveRoles[r] {
+			t.Errorf("role %q is registered in both ContextRoles and InteractiveRoles", r)
+		}
 	}
 }
 

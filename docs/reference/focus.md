@@ -8,20 +8,23 @@ curl -X POST http://localhost:9867/action \
   -d '{"kind":"focus","ref":"e8"}'
 # CLI Alternative
 pinchtab focus e8
-# Response
-{
-  "success": true,
-  "result": {
-    "success": true
-  }
-}
+# Response (use --json for full JSON)
+OK
 ```
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--css` | CSS selector instead of ref |
+| `--json` | Full JSON response |
+| `--tab` | Target specific tab |
 
 This is useful before keyboard-only flows such as `press Enter` or `type`.
 
-The raw action endpoint accepts either `ref` or `selector`. The CLI accepts the same unified selector forms as other top-level action commands.
+The CLI accepts unified selector forms: `e8`, `#input`, `xpath://input`, `text:Email`.
 
-Selector lookup is limited to the current frame scope. The default scope is `main`; use [`/frame`](./frame.md) or `pinchtab frame` before selector-based iframe focus calls.
+Selector lookup is limited to current frame scope (default: `main`). Use [`/frame`](./frame.md) before iframe focus calls.
 
 ## Related Pages
 

@@ -6,13 +6,13 @@ Check server status and availability.
 
 ```bash
 curl http://localhost:9867/health
-# CLI Alternative
+# Response: {"status":"ok","tabs":1}
+
+# CLI Alternative (human-readable by default)
 pinchtab health
-# Response
-{
-  "status": "ok",
-  "tabs": 1
-}
+# Output: ok
+
+pinchtab health --json              # Full JSON response
 ```
 
 Bridge-mode health may also include:

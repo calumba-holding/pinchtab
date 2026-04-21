@@ -18,9 +18,10 @@ curl -X POST http://localhost:9867/frame \
   -d '{"target":"main"}'
 
 # CLI Alternative
-pinchtab frame
-pinchtab frame "#payment-frame"
-pinchtab frame main
+pinchtab frame                          # Shows: main (or frameId if scoped)
+pinchtab frame "#payment-frame"         # Shows: <frameId> (<name>)
+pinchtab frame main                     # Shows: main
+pinchtab frame --json                   # Full JSON response
 ```
 
 Targets accepted by `POST /frame` and `pinchtab frame`:

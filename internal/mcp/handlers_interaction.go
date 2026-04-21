@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -163,6 +164,27 @@ func handleAction(c *Client, kind string) func(context.Context, mcp.CallToolRequ
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
+		if code >= 400 {
+			return resultFromBytes(body, code)
+		}
+
+		// If snap=true, append interactive compact snapshot
+		snapSupportedKinds := map[string]bool{"click": true, "fill": true, "select": true}
+		if snapSupportedKinds[kind] {
+			if snap, ok := optBool(r, "snap"); ok && snap {
+				q := url.Values{}
+				q.Set("filter", "interactive")
+				q.Set("format", "compact")
+				if tabID := optString(r, "tabId"); tabID != "" {
+					q.Set("tabId", tabID)
+				}
+				snapBody, _, snapErr := c.Get(ctx, "/snapshot", q)
+				if snapErr == nil {
+					return mcp.NewToolResultText(string(body) + "\n" + string(snapBody)), nil
+				}
+			}
+		}
+
 		return resultFromBytes(body, code)
 	}
 }

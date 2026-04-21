@@ -35,22 +35,33 @@ Need to check page state?
 
 ## Diff Snapshots for Follow-Up Reads
 
-After an interaction, use `snap -d` to see only what changed — not the full tree.
+Use `--snap-diff` on action commands to get all refs plus change markers — in one call, not two.
 
 ```bash
-pinchtab click e5      # trigger action
-pinchtab snap -d       # only the delta — much smaller
+pinchtab click e5 --snap-diff      # action + full refs with diff markers
+pinchtab fill e3 "text" --snap-diff
 ```
 
-**When to use `-d`:**
-- After clicks that update part of the UI (e.g. accordion opens, toast appears)
-- After form submissions that show inline validation
-- During multi-step wizards where only one section changes
+Output format shows all valid refs with change markers:
+```
+# Page | URL | 57 nodes | +2 ~1 -0
+e0:link "Home"
+e5:button "Submit" [+]           # added
+e12:textbox val="updated" [~]    # changed
+# removed: e99
+```
 
-**When NOT to use `-d`:**
-- After full page navigations (diff will be the entire new page)
-- After `nav` — always take a fresh `snap` instead
-- First snapshot of a session (no baseline exists)
+**When to use `--snap-diff`:**
+- After clicks that update part of the UI (e.g. accordion opens, toast appears)
+- After form fills that show inline validation
+- During multi-step wizards where only one section changes
+- Any interaction where you need to see the result — you get all refs plus diff info
+
+**When NOT to use `--snap-diff`:**
+- After `nav` to a new URL (diff would mark everything as added — use `--snap` instead)
+- First snapshot of a session (no baseline exists — use `--snap`)
+
+**Fallback:** If you already performed an action without `--snap-diff`, use `snap -d` separately.
 
 ---
 
@@ -127,7 +138,7 @@ pinchtab snap -i -c      # fresh snapshot → new refs
 # Now use the new refs from this response
 ```
 
-**Prevention:** Never cache refs across navigations. Always re-snap after a page load or major DOM update.
+**Prevention:** Use `--snap-diff` on actions to get updated refs with each interaction. Never cache refs across navigations.
 
 ---
 
@@ -166,8 +177,9 @@ pinchtab nav <url> --block-images --timeout 60
 
 ## General Efficiency Rules
 
+- **Use `--snap-diff` on actions.** `click e5 --snap-diff` returns OK + only changed elements in one call — most token-efficient for multi-step flows.
 - **Set a stable agent ID up front.** Use `pinchtab --agent-id <agent-id> ...`, `PINCHTAB_AGENT_ID`, or `X-Agent-Id` for raw HTTP calls so work stays attributable to the same agent.
-- **Batch reads before writes.** Snap once, extract all refs, then act. Avoid snap → act → snap → act loops when you can snap → act × N → snap once to verify.
+- **Batch reads before writes.** Snap once, extract all refs, then act. Use `--snap-diff` on each action to see changes without re-fetching the full tree.
 - **Use `text` for extraction tasks.** If you only need to read content (not interact), `text` is cheaper than `snap` + parsing.
 - **Scope snapshots.** Use `snap -s <selector>` to target a specific section of the page when you know where the element is.
 - **Prefer `fill` over `type` for framework forms.** Saves retries caused by React/Vue not detecting raw keystroke events.

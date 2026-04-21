@@ -11,7 +11,10 @@ const (
 	FilterInteractive        = bridgeobserve.FilterInteractive
 )
 
-var InteractiveRoles = bridgeobserve.InteractiveRoles
+var (
+	InteractiveRoles = bridgeobserve.InteractiveRoles
+	ContextRoles     = bridgeobserve.ContextRoles
+)
 
 type A11yNode = bridgeobserve.A11yNode
 type RawAXNode = bridgeobserve.RawAXNode
@@ -65,6 +68,10 @@ func FormatSnapshotText(nodes []A11yNode) string {
 
 func FormatSnapshotCompact(nodes []A11yNode) string {
 	return bridgeobserve.FormatSnapshotCompact(nodes)
+}
+
+func FormatSnapshotCompactDiff(nodes, added, changed, removed []A11yNode) string {
+	return bridgeobserve.FormatSnapshotCompactDiff(nodes, added, changed, removed)
 }
 
 func TruncateToTokens(nodes []A11yNode, maxTokens int, format string) ([]A11yNode, bool) {

@@ -68,6 +68,19 @@ PINCHTAB_AGENT_ID=agent-crawl-01 pinchtab nav https://pinchtab.com
 curl 'http://127.0.0.1:9867/api/activity?agentId=agent-crawl-01'
 ```
 
+## Output Format
+
+Most commands output human-readable text by default. Use `--json` for structured output:
+
+```bash
+pinchtab tab                  # *abc123  https://...  Title
+pinchtab tab --json           # {"tabs":[...]}
+pinchtab frame                # main
+pinchtab network              # GET  200  https://...
+```
+
+**For scripts**: Always use `--json` when piping or parsing programmatically. Human-readable output may change between versions. JSON is the stable contract.
+
 ## Core Commands
 
 | Command | Purpose |

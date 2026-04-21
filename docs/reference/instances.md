@@ -14,8 +14,13 @@ One profile can have at most one active managed instance at a time.
 
 ```bash
 curl http://localhost:9867/instances
-# CLI Alternative
+# Response: JSON array (see below)
+
+# CLI Alternative (human-readable by default)
 pinchtab instances
+# Output: inst_0a89  9999  headed  running
+
+pinchtab instances --json              # Full JSON response
 ```
 
 `pinchtab instances` is the simplest way to inspect the current fleet from the CLI.

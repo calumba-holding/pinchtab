@@ -222,6 +222,25 @@ var InteractiveRoles = map[string]bool{
 	"tab": true, "treeitem": true, "iframe": true, "Iframe": true,
 }
 
+// ContextRoles are non-actionable but content-bearing roles that give an agent
+// structural/semantic context about the page. They are preserved under the
+// FilterInteractive filter in addition to InteractiveRoles so `snap -i` returns
+// a tree that is usable without a follow-up page-text fetch.
+//
+// Keep this set tight:
+//   - Include: headings (structure), tables (cell/columnheader/rowheader), media (image/figure/caption)
+//   - Exclude: StaticText (duplicates parent names), paragraph/listitem (container noise),
+//     landmarks (banner/main/navigation/region add no content)
+var ContextRoles = map[string]bool{
+	"heading":      true,
+	"image":        true,
+	"cell":         true,
+	"columnheader": true,
+	"rowheader":    true,
+	"caption":      true,
+	"figure":       true,
+}
+
 const FilterInteractive = "interactive"
 
 // isAXNodeHidden checks whether a raw accessibility node has properties
@@ -426,7 +445,7 @@ func BuildSnapshot(nodes []RawAXNode, filter string, maxDepth int) ([]A11yNode, 
 			return
 		}
 
-		if !isSkippableNode(n) && (filter != FilterInteractive || InteractiveRoles[n.Role.String()]) {
+		if !isSkippableNode(n) && (filter != FilterInteractive || InteractiveRoles[n.Role.String()] || ContextRoles[n.Role.String()]) {
 			appendNode(n, depth)
 		}
 

@@ -6,24 +6,32 @@ Clear the browser's HTTP disk cache.
 
 ```bash
 curl -X POST http://localhost:9867/cache/clear
-# CLI Alternative
-pinchtab cache clear
 # Response
 {
   "status": "cleared"
 }
+
+# CLI Alternative (human-readable by default)
+pinchtab cache clear
+# Output: OK
+
+pinchtab cache clear --json              # Full JSON response
 ```
 
 ## Check Status
 
 ```bash
 curl http://localhost:9867/cache/status
-# CLI Alternative
-pinchtab cache status
 # Response
 {
   "canClear": true
 }
+
+# CLI Alternative (human-readable by default)
+pinchtab cache status
+# Output: can-clear (or cache-empty)
+
+pinchtab cache status --json             # Full JSON response
 ```
 
 ## Notes

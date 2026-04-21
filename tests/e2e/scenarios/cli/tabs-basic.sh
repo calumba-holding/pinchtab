@@ -9,7 +9,7 @@ start_test "pinchtab tab (list)"
 
 pt_ok nav "${FIXTURES_URL}/index.html"
 
-pt_ok tab
+pt_ok tab --json
 assert_output_json
 assert_output_contains "tabs" "returns tabs array"
 
@@ -31,7 +31,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab tab new <url>"
 
-pt_ok tab new "${FIXTURES_URL}/buttons.html"
+pt_ok tab new "${FIXTURES_URL}/buttons.html" --json
 assert_output_json
 assert_output_contains "tabId" "returns new tab ID"
 
@@ -49,7 +49,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab tab (list tabs)"
 
-pt_ok tab
+pt_ok tab --json
 assert_output_json "output is valid JSON"
 assert_output_contains "tabs" "output contains tabs array"
 
@@ -60,14 +60,16 @@ start_test "pinchtab tab <id> (focus by tab ID)"
 
 pt nav "${FIXTURES_URL}/index.html"
 
-pt tab
+# Tab list now outputs terse format: [*]<id>\t<url>\t<title>
+pt tab --json
 assert_output_json "tab list is valid JSON"
 TAB_ID=$(echo "$PT_OUT" | jq -r '.tabs[0].id // empty')
 
 if [ -n "$TAB_ID" ] && [ "$TAB_ID" != "null" ]; then
   echo -e "  ${BLUE}→ focusing on tab ID: ${TAB_ID:0:12}...${NC}"
   pt_ok tab "$TAB_ID"
-  assert_output_contains "focused" "output indicates tab is focused"
+  # Output is now the tab ID
+  assert_output_contains "$TAB_ID" "output contains focused tab ID"
 else
   echo -e "  ${YELLOW}⚠${NC} could not extract tab ID, skipping"
   ((ASSERTIONS_PASSED++)) || true
@@ -84,7 +86,7 @@ CLOSE_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 if [ -n "$CLOSE_ID" ] && [ "$CLOSE_ID" != "null" ]; then
   echo -e "  ${MUTED}closing tab: ${CLOSE_ID:0:12}...${NC}"
   pt_ok tab close "$CLOSE_ID"
-  assert_output_contains "closed" "output confirms tab was closed"
+  assert_output_contains "OK" "output confirms tab was closed"
 else
   echo -e "  ${YELLOW}⚠${NC} could not get tab ID from navigate, skipping"
   ((ASSERTIONS_PASSED++)) || true

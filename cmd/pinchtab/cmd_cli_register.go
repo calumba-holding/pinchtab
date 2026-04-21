@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pinchtab/pinchtab/internal/bridge"
 	"github.com/spf13/cobra"
@@ -128,6 +130,9 @@ func configureBrowserFlags() {
 	clickCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(clickCmd, "click")
 	clickCmd.Flags().Bool("wait-nav", false, "Wait for navigation after click")
+	clickCmd.Flags().Bool("snap", false, "Output interactive snapshot after action")
+	clickCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after action (changes only)")
+	clickCmd.Flags().Bool("text", false, "Output page text after action (for verification)")
 	clickCmd.Flags().String("dialog-action", "", "Auto-handle a JS dialog opened by the click: accept | dismiss")
 	clickCmd.Flags().String("dialog-text", "", "Prompt response text (with --dialog-action accept on prompt())")
 
@@ -159,8 +164,9 @@ func configureBrowserFlags() {
 
 	focusCmd.Flags().String("css", "", "CSS selector instead of ref")
 
-	snapCmd.Flags().BoolP("interactive", "i", false, "Filter interactive elements only")
-	snapCmd.Flags().BoolP("compact", "c", false, "Compact output format")
+	snapCmd.Flags().BoolP("interactive", "i", true, "Filter interactive elements + headings (default true, use --interactive=false for all)")
+	snapCmd.Flags().BoolP("compact", "c", true, "Compact output format (default true, use --compact=false for JSON)")
+	snapCmd.Flags().Bool("full", false, "Full JSON output (shorthand for --interactive=false --compact=false)")
 	snapCmd.Flags().Bool("text", false, "Text output format")
 	snapCmd.Flags().BoolP("diff", "d", false, "Show diff from previous snapshot")
 	snapCmd.Flags().StringP("selector", "s", "", "CSS selector to scope snapshot")
@@ -198,10 +204,32 @@ func configureBrowserFlags() {
 	textCmd.Flags().Bool("raw", false, "Raw extraction mode (alias of --full)")
 	textCmd.Flags().Bool("full", false, "Return the full page text (document.body.innerText) instead of the default Readability-filtered content")
 	textCmd.Flags().String("frame", "", "Extract text from a specific iframe by frameId. If unset, uses the tab's active frame scope (set via `pinchtab frame`) or the top-level document.")
+	textCmd.Flags().StringP("selector", "s", "", "Element selector to extract text from (ref/CSS/XPath/text)")
+	textCmd.Flags().Bool("json", false, "Output full JSON response instead of just text content")
 
 	navCmd.Flags().Bool("new-tab", false, "Open in new tab")
 	navCmd.Flags().Bool("block-images", false, "Block image loading")
 	navCmd.Flags().Bool("block-ads", false, "Block ads")
+	navCmd.Flags().Bool("snap", false, "Output interactive snapshot after navigation")
+	navCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after navigation (changes only)")
+
+	backCmd.Flags().Bool("snap", false, "Output interactive snapshot after navigation")
+	backCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after navigation (changes only)")
+	backCmd.Flags().Bool("text", false, "Output page text after navigation (for verification)")
+	forwardCmd.Flags().Bool("snap", false, "Output interactive snapshot after navigation")
+	forwardCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after navigation (changes only)")
+	forwardCmd.Flags().Bool("text", false, "Output page text after navigation (for verification)")
+	reloadCmd.Flags().Bool("snap", false, "Output interactive snapshot after reload")
+	reloadCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after reload (changes only)")
+	reloadCmd.Flags().Bool("text", false, "Output page text after reload (for verification)")
+	fillCmd.Flags().Bool("snap", false, "Output interactive snapshot after fill")
+	fillCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after fill (changes only)")
+	fillCmd.Flags().Bool("text", false, "Output page text after fill (for verification)")
+	selectCmd.Flags().Bool("snap", false, "Output interactive snapshot after select")
+	selectCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after select (changes only)")
+	selectCmd.Flags().Bool("text", false, "Output page text after select (for verification)")
+	scrollCmd.Flags().Bool("snap", false, "Output interactive snapshot after scroll")
+	scrollCmd.Flags().Bool("snap-diff", false, "Output snapshot diff after scroll (changes only)")
 
 	addTabFlag(
 		navCmd,
@@ -245,6 +273,44 @@ func configureBrowserFlags() {
 	evalCmd.Flags().Bool("await-promise", false, "Resolve a returned Promise before responding")
 	navCmd.Flags().Bool("print-tab-id", false, "Print only the tab ID on stdout (also triggered automatically when stdout is a pipe)")
 
+	// Add --json flag to action commands (default is terse output)
+	addJSONFlag(
+		clickCmd,
+		dblclickCmd,
+		hoverCmd,
+		mouseMoveCmd,
+		mouseDownCmd,
+		mouseUpCmd,
+		mouseWheelCmd,
+		dragCmd,
+		focusCmd,
+		typeCmd,
+		pressCmd,
+		fillCmd,
+		scrollCmd,
+		selectCmd,
+		checkCmd,
+		uncheckCmd,
+		scrollintoviewCmd,
+		waitCmd,
+		dialogAcceptCmd,
+		dialogDismissCmd,
+		backCmd,
+		forwardCmd,
+		reloadCmd,
+		navCmd,
+		findCmd,
+		evalCmd,
+		tabsCmd,
+		tabNewCmd,
+		tabCloseCmd,
+		healthCmd,
+		cacheClearCmd,
+		cacheStatusCmd,
+		frameCmd,
+		networkCmd,
+	)
+
 	scrollintoviewCmd.Flags().String("css", "", "CSS selector instead of ref")
 
 	networkCmd.Flags().String("filter", "", "URL pattern filter")
@@ -282,6 +348,9 @@ func configureManagementFlags() {
 
 	activityCmd.PersistentFlags().Int("limit", 200, "Maximum number of events to return")
 	activityCmd.PersistentFlags().Int("age-sec", 0, "Only include events from the last N seconds")
+
+	instancesCmd.Flags().Bool("json", false, "Output full JSON response instead of terse status")
+	profilesCmd.Flags().Bool("json", false, "Output full JSON response instead of terse status")
 }
 
 func setCommandGroup(groupID string, cmds ...*cobra.Command) {
@@ -295,18 +364,58 @@ func addRootCommands(cmds ...*cobra.Command) {
 }
 
 // addTabFlag wires a --tab flag onto the given commands and defaults its
-// value to $PINCHTAB_TAB when the env var is set. This lets agents avoid
-// threading `--tab "$TAB"` through every command:
+// value from (in priority order): $PINCHTAB_TAB env var, or the state file
+// written by `nav`. This lets agents avoid threading `--tab "$TAB"` through
+// every command:
 //
-//	export PINCHTAB_TAB=$(pinchtab nav http://example.com)
-//	pinchtab snap -i -c   # auto-targets $PINCHTAB_TAB
+//	pinchtab nav http://example.com   # writes tab ID to state file
+//	pinchtab snap -i -c               # auto-reads from state file
 //
-// Explicit --tab still wins (cobra flag precedence). If the env var isn't
-// set and no flag is passed, the server picks the active tab as before.
+// Explicit --tab still wins (cobra flag precedence). If neither env var nor
+// state file is set, the server picks the active tab as before.
 func addTabFlag(cmds ...*cobra.Command) {
 	defaultTab := os.Getenv("PINCHTAB_TAB")
+	if defaultTab == "" {
+		defaultTab = readTabStateFile()
+	}
 	for _, cmd := range cmds {
 		cmd.Flags().String("tab", defaultTab, "Tab ID (env: PINCHTAB_TAB)")
+	}
+}
+
+// tabStateFile returns the path to the tab state file.
+func tabStateFile() string {
+	if dir := os.Getenv("XDG_STATE_HOME"); dir != "" {
+		return dir + "/pinchtab/current-tab"
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return home + "/.local/state/pinchtab/current-tab"
+	}
+	return "/tmp/pinchtab-current-tab"
+}
+
+// readTabStateFile reads the persisted tab ID from the state file.
+func readTabStateFile() string {
+	data, err := os.ReadFile(tabStateFile())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// WriteTabStateFile persists the tab ID to the state file for subsequent commands.
+func WriteTabStateFile(tabID string) {
+	if tabID == "" {
+		return
+	}
+	path := tabStateFile()
+	_ = os.MkdirAll(filepath.Dir(path), 0755)
+	_ = os.WriteFile(path, []byte(tabID+"\n"), 0644)
+}
+
+func addJSONFlag(cmds ...*cobra.Command) {
+	for _, cmd := range cmds {
+		cmd.Flags().Bool("json", false, "Output full JSON response instead of terse status")
 	}
 }
 

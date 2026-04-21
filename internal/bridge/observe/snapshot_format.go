@@ -65,6 +65,63 @@ func FormatSnapshotCompact(nodes []A11yNode) string {
 	return b.String()
 }
 
+// FormatSnapshotCompactDiff outputs all current nodes in compact format with
+// change markers: [+] for added, [~] for changed. Removed refs are listed at
+// the end as [- ref]. This gives agents the full valid ref set plus change info.
+func FormatSnapshotCompactDiff(nodes []A11yNode, added, changed, removed []A11yNode) string {
+	addedRefs := make(map[string]bool, len(added))
+	for _, n := range added {
+		addedRefs[n.Ref] = true
+	}
+	changedRefs := make(map[string]bool, len(changed))
+	for _, n := range changed {
+		changedRefs[n.Ref] = true
+	}
+
+	var b strings.Builder
+	for _, n := range nodes {
+		b.WriteString(n.Ref)
+		b.WriteByte(':')
+		b.WriteString(n.Role)
+		if n.Name != "" {
+			b.WriteString(` "`)
+			b.WriteString(n.Name)
+			b.WriteByte('"')
+		}
+		if n.Value != "" {
+			b.WriteString(` val="`)
+			b.WriteString(n.Value)
+			b.WriteByte('"')
+		}
+		if n.Focused {
+			b.WriteString(" *")
+		}
+		if n.Disabled {
+			b.WriteString(" -")
+		}
+		if n.Hidden {
+			b.WriteString(" [hidden]")
+		}
+		if addedRefs[n.Ref] {
+			b.WriteString(" [+]")
+		} else if changedRefs[n.Ref] {
+			b.WriteString(" [~]")
+		}
+		b.WriteByte('\n')
+	}
+
+	if len(removed) > 0 {
+		b.WriteString("# removed:")
+		for _, n := range removed {
+			b.WriteByte(' ')
+			b.WriteString(n.Ref)
+		}
+		b.WriteByte('\n')
+	}
+
+	return b.String()
+}
+
 func TruncateToTokens(nodes []A11yNode, maxTokens int, format string) ([]A11yNode, bool) {
 	tokensUsed := 0
 	for i, n := range nodes {

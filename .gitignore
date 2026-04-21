@@ -23,6 +23,7 @@
 .openclaw/
 .tools/
 .venv/
+.claude
 /pinchtab
 AGENTS.md
 BOOTSTRAP.md
@@ -51,3 +52,5 @@ pinchtab-small
 pinchtab.exe
 plugins/*/.venv/
 tests/e2e/results/*
+runner
+skills/agent-browser

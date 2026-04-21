@@ -12,11 +12,18 @@ import (
 
 // CacheClear clears the browser's HTTP disk cache.
 func CacheClear(client *http.Client, base, token string, cmd *cobra.Command) {
-	// DoPost already prints the JSON response
-	result := apiclient.DoPost(client, base, token, "/cache/clear", nil)
+	result := apiclient.DoPostQuiet(client, base, token, "/cache/clear", nil)
 	if result == nil {
-		fmt.Fprintln(os.Stderr, "Failed to clear cache")
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, "ERROR: cache: clear failed")
+		os.Exit(2)
+	}
+
+	jsonOut, _ := cmd.Flags().GetBool("json")
+	if jsonOut {
+		out, _ := json.MarshalIndent(result, "", "  ")
+		fmt.Println(string(out))
+	} else {
+		fmt.Println("OK")
 	}
 }
 
@@ -24,16 +31,25 @@ func CacheClear(client *http.Client, base, token string, cmd *cobra.Command) {
 func CacheStatus(client *http.Client, base, token string, cmd *cobra.Command) {
 	result := apiclient.DoGetRaw(client, base, token, "/cache/status", nil)
 	if result == nil {
-		fmt.Fprintln(os.Stderr, "Failed to get cache status")
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, "ERROR: cache: status check failed")
+		os.Exit(2)
 	}
 
 	var buf map[string]any
 	if err := json.Unmarshal(result, &buf); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse response: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "ERROR: cache: %v\n", err)
+		os.Exit(2)
 	}
 
-	out, _ := json.MarshalIndent(buf, "", "  ")
-	fmt.Println(string(out))
+	jsonOut, _ := cmd.Flags().GetBool("json")
+	if jsonOut {
+		out, _ := json.MarshalIndent(buf, "", "  ")
+		fmt.Println(string(out))
+	} else {
+		if canClear, ok := buf["canClear"].(bool); ok && canClear {
+			fmt.Println("can-clear")
+		} else {
+			fmt.Println("cache-empty")
+		}
+	}
 }

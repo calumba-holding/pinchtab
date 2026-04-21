@@ -13,6 +13,8 @@ func newTextCmd() *cobra.Command {
 	cmd.Flags().Bool("full", false, "")
 	cmd.Flags().String("tab", "", "")
 	cmd.Flags().String("frame", "", "")
+	cmd.Flags().String("selector", "", "")
+	cmd.Flags().Bool("json", false, "")
 	return cmd
 }
 
@@ -23,7 +25,7 @@ func TestText(t *testing.T) {
 	client := m.server.Client()
 
 	cmd := newTextCmd()
-	Text(client, m.base(), "", cmd)
+	Text(client, m.base(), "", cmd, nil)
 	if m.lastPath != "/text" {
 		t.Errorf("expected /text, got %s", m.lastPath)
 	}
@@ -36,7 +38,7 @@ func TestTextRaw(t *testing.T) {
 
 	cmd := newTextCmd()
 	_ = cmd.Flags().Set("raw", "true")
-	Text(client, m.base(), "", cmd)
+	Text(client, m.base(), "", cmd, nil)
 	if !strings.Contains(m.lastQuery, "mode=raw") {
 		t.Errorf("expected mode=raw, got %s", m.lastQuery)
 	}
@@ -52,7 +54,7 @@ func TestTextFull(t *testing.T) {
 
 	cmd := newTextCmd()
 	_ = cmd.Flags().Set("full", "true")
-	Text(client, m.base(), "", cmd)
+	Text(client, m.base(), "", cmd, nil)
 	if !strings.Contains(m.lastQuery, "mode=raw") {
 		t.Errorf("expected --full to set mode=raw, got %s", m.lastQuery)
 	}
@@ -68,7 +70,7 @@ func TestTextFrame(t *testing.T) {
 
 	cmd := newTextCmd()
 	_ = cmd.Flags().Set("frame", "FRAME123")
-	Text(client, m.base(), "", cmd)
+	Text(client, m.base(), "", cmd, nil)
 	if !strings.Contains(m.lastQuery, "frameId=FRAME123") {
 		t.Errorf("expected frameId=FRAME123, got %s", m.lastQuery)
 	}
@@ -81,7 +83,7 @@ func TestTextTab(t *testing.T) {
 
 	cmd := newTextCmd()
 	_ = cmd.Flags().Set("tab", "TAB1")
-	Text(client, m.base(), "", cmd)
+	Text(client, m.base(), "", cmd, nil)
 	if !strings.Contains(m.lastQuery, "tabId=TAB1") {
 		t.Errorf("expected tabId=TAB1, got %s", m.lastQuery)
 	}

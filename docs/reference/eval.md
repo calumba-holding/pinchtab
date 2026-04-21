@@ -10,19 +10,34 @@ curl -X POST http://localhost:9867/evaluate \
   -d '{"expression":"document.title"}'
 # CLI Alternative
 pinchtab eval "document.title"
-# Response
-{
-  "result": "Example Domain"
-}
+# Response (default is result value; use --json for full JSON)
+Example Domain
 ```
 
-Notes:
+## CLI Flags
 
-- requires `security.allowEvaluate: true`
-- the tab-scoped variant is `POST /tabs/{id}/evaluate`
-- `/evaluate` is intentionally not frame-scoped
-- current `/frame` state does not affect `pinchtab eval` or `/evaluate`
-- if you need iframe access from `/evaluate`, your expression must handle that explicitly
+| Flag | Description |
+|------|-------------|
+| `--await-promise` | Resolve returned Promise before responding |
+| `--json` | Full JSON response |
+| `--tab` | Target specific tab |
+
+## Examples
+
+```bash
+pinchtab eval "document.title"
+pinchtab eval "document.querySelectorAll('a').length"
+pinchtab eval "fetch('/api/data').then(r => r.json())" --await-promise
+pinchtab eval "document.title" --json    # {"result":"Example Domain"}
+```
+
+## Notes
+
+- Requires `security.allowEvaluate: true`
+- Tab-scoped variant: `POST /tabs/{id}/evaluate`
+- `/evaluate` is intentionally **not** frame-scoped
+- Current `/frame` state does not affect `pinchtab eval`
+- For iframe access, your expression must handle that explicitly
 
 ## Related Pages
 

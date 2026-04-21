@@ -8,27 +8,50 @@ Selector scoping is explicit. `selector=...` only searches the current frame sco
 
 ```bash
 curl "http://localhost:9867/snapshot?filter=interactive"
-# CLI Alternative
+# CLI Alternative (defaults to compact text output)
 pinchtab snap -i
-# Response
-{
-  "url": "https://pinchtab.com",
-  "title": "Example Domain",
-  "nodes": [
-    {
-      "ref": "e5",
-      "role": "link",
-      "name": "More information..."
-    }
-  ],
-  "count": 1
-}
+# Output
+[e5] link "More information..."
+
+# Use --full or --compact=false for JSON
+pinchtab snap --full
 ```
 
-Useful flags:
+## CLI Flags
 
-- CLI: `-i`, `-c`, `-d`, `--selector`, `--max-tokens`, `--depth`
-- API query: `filter`, `format`, `diff`, `selector`, `maxTokens`, `depth`
+| Flag | Description |
+|------|-------------|
+| `-i`, `--interactive` | Filter to interactive elements + headings (default: true) |
+| `-c`, `--compact` | Compact text output (default: true) |
+| `-d`, `--diff` | Show diff from previous snapshot |
+| `--full` | Full JSON output (shorthand for `--interactive=false --compact=false`) |
+| `--text` | Text output format |
+| `-s`, `--selector` | CSS selector to scope snapshot |
+| `--max-tokens` | Maximum token budget |
+| `--depth` | Tree depth limit |
+| `--tab` | Target specific tab |
+
+## Examples
+
+```bash
+pinchtab snap                           # Interactive compact (default)
+pinchtab snap -i -c                     # Same as above
+pinchtab snap --full                    # Full JSON with all nodes
+pinchtab snap -d                        # Show changes since last snapshot
+pinchtab snap --selector "#main"        # Scope to element
+pinchtab snap --max-tokens 2000         # Limit output size
+```
+
+## API Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `filter` | `interactive` for interactive + headings |
+| `format` | `compact`, `text`, `yaml`, or default JSON |
+| `diff` | `true` for diff mode |
+| `selector` | CSS selector to scope |
+| `maxTokens` | Token budget limit |
+| `depth` | Tree depth limit |
 
 ## Related Pages
 

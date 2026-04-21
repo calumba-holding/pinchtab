@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
+	"github.com/pinchtab/pinchtab/internal/cli/output"
 	"github.com/spf13/cobra"
 )
 
@@ -54,8 +55,20 @@ func Wait(client *http.Client, base, token string, args []string, cmd *cobra.Com
 
 	path := "/wait"
 	if tabID != "" {
-		path = fmt.Sprintf("/tabs/%s/wait", tabID)
+		path = "/tabs/" + tabID + "/wait"
 	}
 
-	apiclient.DoPost(client, base, token, path, body)
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		apiclient.DoPost(client, base, token, path, body)
+		return
+	}
+
+	result := apiclient.DoPostQuiet(client, base, token, path, body)
+	// Server returns waited=false when condition isn't met within timeout
+	if waited, ok := result["waited"].(bool); ok && !waited {
+		output.Error("wait", "timeout", output.ExitTimeout)
+		return
+	}
+	output.Success()
 }

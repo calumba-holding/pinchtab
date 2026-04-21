@@ -4,6 +4,11 @@
 HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${HELPERS_DIR}/base.sh"
 
+# Clear any stale tab state file to prevent 404 errors when the CLI tries to
+# reuse a tab ID that no longer exists in the server.
+rm -f "${XDG_STATE_HOME:-$HOME/.local/state}/pinchtab/current-tab" 2>/dev/null || true
+rm -f /tmp/pinchtab-current-tab 2>/dev/null || true
+
 E2E_SUMMARY_TITLE="CLI E2E Test Summary"
 E2E_SUMMARY_FILE="summary.txt"
 E2E_REF_JSON_VAR="PT_OUT"
@@ -194,10 +199,9 @@ assert_config_version_one_of() {
   return 1
 }
 
-# Assert PT_OUT is a bare tab ID. When stdout is redirected to a file (as
-# in this harness), `pinchtab nav|goto|navigate` auto-switches to
-# machine-friendly output: just the tab ID on stdout (no JSON envelope).
-# See stdoutIsPipe() in internal/cli/actions/actions_navigate.go.
+# Assert PT_OUT is a bare tab ID. `pinchtab nav|goto|navigate` emits just
+# the tab ID on stdout by default (no JSON envelope); pass --json to get
+# the full response. See Navigate() in internal/cli/actions/actions_navigate.go.
 assert_tab_id() {
   local desc="${1:-returns tab ID}"
   local trimmed

@@ -64,6 +64,8 @@ Click an element by its accessibility ref (from `snap`).
 
 ```bash
 pinchtab click e5
+pinchtab click e5 --snap-diff    # click + return only changed elements
+pinchtab click e5 --snap         # click + return full snapshot
 pinchtab click e5 --tab <tabId>
 ```
 
@@ -79,6 +81,7 @@ Fill a form field using JS event dispatch. Prefer over `type` for React/Vue/Angu
 
 ```bash
 pinchtab fill e12 "hello world"
+pinchtab fill e12 "hello" --snap-diff    # fill + return only changed elements
 ```
 
 ### `pinchtab press <key>`
@@ -124,6 +127,7 @@ Select an option from a `<select>` dropdown.
 
 ```bash
 pinchtab select e8 "option-value"
+pinchtab select e8 "value" --snap-diff    # select + return only changed elements
 ```
 
 ---
@@ -138,7 +142,7 @@ pinchtab snap                   # full tree
 pinchtab snap -i                # interactive elements only (smaller)
 pinchtab snap -c                # compact format (fewer tokens)
 pinchtab snap -i -c             # both: cheapest snapshot
-pinchtab snap -d                # diff: only changes since last snap
+pinchtab snap -d                # diff: only changes since last snap (prefer --snap-diff on actions)
 pinchtab snap -s main           # scoped to CSS selector
 pinchtab snap --max-tokens 2000 # token budget cap
 ```

@@ -1,7 +1,7 @@
 package actions
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +9,7 @@ import (
 	"github.com/pinchtab/pinchtab/internal/bridge"
 	"github.com/pinchtab/pinchtab/internal/cli"
 	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
+	"github.com/pinchtab/pinchtab/internal/cli/output"
 	"github.com/pinchtab/pinchtab/internal/selector"
 	"github.com/spf13/cobra"
 )
@@ -90,9 +91,82 @@ func postActionWithHeaders(client *http.Client, base, token string, cmd *cobra.C
 	tabID, _ := cmd.Flags().GetString("tab")
 	path := "/action"
 	if tabID != "" {
-		path = fmt.Sprintf("/tabs/%s/action", tabID)
+		path = "/tabs/" + tabID + "/action"
 	}
-	apiclient.DoPostWithHeaders(client, base, token, path, body, headers)
+
+	// Default to terse output; --json flag enables full JSON response
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		apiclient.DoPostWithHeaders(client, base, token, path, body, headers)
+		return
+	}
+
+	// Quiet mode: print simple success message
+	result := apiclient.DoPostQuietWithHeaders(client, base, token, path, body, headers)
+	kind, _ := body["kind"].(string)
+	printActionResult(kind, result)
+
+	// If --snap or --snap-diff flag is set, fetch and output snapshot
+	snap, _ := cmd.Flags().GetBool("snap")
+	snapDiff, _ := cmd.Flags().GetBool("snap-diff")
+	if snap || snapDiff {
+		fetchAndPrintSnapshot(client, base, token, tabID, snapDiff)
+	}
+
+	// If --text flag is set, fetch and output text content
+	text, _ := cmd.Flags().GetBool("text")
+	if text {
+		fetchAndPrintText(client, base, token, tabID)
+	}
+}
+
+func fetchAndPrintSnapshot(client *http.Client, base, token, tabID string, diff bool) {
+	params := "filter=interactive&format=compact"
+	if diff {
+		params += "&diff=true"
+	}
+	if tabID != "" {
+		params += "&tabId=" + tabID
+	}
+	apiclient.DoGetRawAndPrint(client, base, token, "/snapshot?"+params)
+}
+
+func fetchAndPrintText(client *http.Client, base, token, tabID string) {
+	path := "/text"
+	if tabID != "" {
+		path = "/tabs/" + tabID + "/text"
+	}
+	body := apiclient.DoGetRaw(client, base, token, path, nil)
+	var result struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		output.Value(string(body))
+		return
+	}
+	output.Value(result.Text)
+}
+
+func printActionResult(kind string, result map[string]any) {
+	// Check for failure
+	if success, ok := result["success"].(bool); ok && !success {
+		errMsg := "unknown error"
+		if msg, ok := result["error"].(string); ok {
+			errMsg = msg
+		}
+		// Check for recovery hints
+		if recovery, ok := result["recovery"].(map[string]any); ok {
+			if failType, ok := recovery["failure_type"].(string); ok {
+				if failType == "stale" || failType == "navigation" {
+					output.Hint("ref may be stale — run `pinchtab snap -i` to refresh")
+				}
+			}
+		}
+		output.Error(kind, errMsg, output.ExitNotFound)
+		return
+	}
+
+	output.Success()
 }
 
 func setPointBody(body map[string]any, x, y float64) {
