@@ -1,6 +1,6 @@
-# Pinchtab OpenClaw Plugin
+# PinchTab OpenClaw Plugin
 
-Browser control for AI agents via [Pinchtab](https://pinchtab.com). Single-tool design — one `pinchtab` tool handles all browser operations. Minimal context bloat.
+Browser control for AI agents via [PinchTab](https://pinchtab.com). Single-tool design — one `pinchtab` tool handles all browser operations. Minimal context bloat.
 
 ## Install
 
@@ -11,7 +11,7 @@ openclaw gateway restart
 
 ## Quick Start
 
-The plugin auto-starts a local Pinchtab server when needed. Just install and go:
+The plugin auto-starts a local PinchTab server when needed. Just install and go:
 
 ```bash
 openclaw plugins install @pinchtab/pinchtab
@@ -105,7 +105,7 @@ Map browser sessions to OpenClaw profile semantics:
 |---------|----------|
 | `openclaw` | Default isolated automation profile |
 | `user` | Attach to existing browser session (cookies/logins preserved) |
-| Custom | Map to specific Pinchtab instance via config |
+| Custom | Map to specific PinchTab instance via config |
 
 ```json5
 {
@@ -133,7 +133,7 @@ Usage: `browser({ action: "navigate", url: "...", profile: "user" })`
 | `pdf` | Export PDF (landscape?, scale?) |
 | `status` | Health check with config/warnings |
 
-## Pinchtab Tool: All Actions
+## PinchTab Tool: All Actions
 
 One tool definition, many actions — keeps context lean:
 
@@ -229,7 +229,7 @@ pinchtab({ action: "wait", text: "Welcome back", timeout: 120000 })
 
 ## Migrating from OpenClaw Bundled Browser
 
-To replace the bundled `browser` plugin with Pinchtab:
+To replace the bundled `browser` plugin with PinchTab:
 
 ### 1. Disable bundled browser
 ```json5
@@ -245,7 +245,7 @@ To replace the bundled `browser` plugin with Pinchtab:
 
 ### 2. Action mapping
 
-| OpenClaw `browser` | Pinchtab equivalent |
+| OpenClaw `browser` | PinchTab equivalent |
 |--------------------|---------------------|
 | `browser.open(url)` | `browser({ action: "navigate", url })` |
 | `browser.snapshot()` | `browser({ action: "snapshot" })` |
@@ -257,7 +257,7 @@ To replace the bundled `browser` plugin with Pinchtab:
 
 ### 3. Profile mapping
 
-| OpenClaw profile | Pinchtab config |
+| OpenClaw profile | PinchTab config |
 |------------------|-----------------|
 | `openclaw` (default) | Default isolated profile |
 | `user` | `{ attach: true }` - existing session |
@@ -265,11 +265,24 @@ To replace the bundled `browser` plugin with Pinchtab:
 
 ### 4. Key differences
 
-- **Auto-start**: Pinchtab auto-starts locally by default (disable with `autoStart: false`)
+- **Auto-start**: PinchTab auto-starts locally by default (disable with `autoStart: false`)
 - **Policy**: `allowEvaluate`, `allowDownloads`, `allowUploads` are `false` by default
 - **Advanced actions**: Use `pinchtab` tool for mouse controls, wait, handoff, evaluate
 
 ## Requirements
 
-- Pinchtab binary in PATH (or set `binaryPath`)
+- PinchTab binary in PATH (or set `binaryPath`)
 - OpenClaw Gateway
+
+## Disclaimer
+
+This plugin is provided "as is" without warranty of any kind. Use at your own risk.
+
+PinchTab is designed for controlled automation in environments you manage. When using this plugin:
+
+- You are responsible for compliance with website terms of service
+- You are responsible for securing your PinchTab server (tokens, network boundaries, TLS)
+- You are responsible for any actions performed by AI agents using this plugin
+- Do not use for unauthorized access, scraping prohibited content, or violating any laws
+
+The authors and contributors are not responsible for misuse, damages, or any issues arising from the use of this software.
