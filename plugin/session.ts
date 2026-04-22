@@ -3,6 +3,17 @@ import { pinchtabFetch } from "./client.js";
 
 let serverStarted = false;
 let lastTabId: string | undefined;
+let startupPromise: Promise<{ ok: boolean; error?: string; autoStarted?: boolean }> | null = null;
+
+export function isLocalHost(baseUrl: string): boolean {
+  try {
+    const url = new URL(baseUrl);
+    const host = url.hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+  } catch {
+    return false;
+  }
+}
 
 export function getLastTabId(): string | undefined {
   return lastTabId;
@@ -56,20 +67,46 @@ export async function getEnhancedHealth(cfg: PluginConfig): Promise<any> {
   return result;
 }
 
-export async function ensureServerRunning(cfg: PluginConfig): Promise<{ ok: boolean; error?: string }> {
+export async function ensureServerRunning(cfg: PluginConfig): Promise<{ ok: boolean; error?: string; autoStarted?: boolean }> {
   const base = cfg.baseUrl || "http://localhost:9867";
-  const isLocal = base.includes("localhost") || base.includes("127.0.0.1");
 
   const healthCheck = await pinchtabFetch(cfg, "/health");
   if (!healthCheck?.error) {
     return { ok: true };
   }
 
-  if (!isLocal || cfg.autoStart === false || serverStarted) {
+  if (!isLocalHost(base) || cfg.autoStart === false || serverStarted) {
     return { ok: false, error: healthCheck.error };
   }
 
-  const binary = cfg.binaryPath || "pinchtab";
+  // Single-flight guard: if startup is in progress, wait for it
+  if (startupPromise) {
+    return startupPromise;
+  }
+
+  startupPromise = doStartServer(cfg);
+  try {
+    return await startupPromise;
+  } finally {
+    startupPromise = null;
+  }
+}
+
+async function resolveBinaryPath(binary: string): Promise<string> {
+  if (binary.startsWith("/") || binary.startsWith("./")) {
+    return binary;
+  }
+  try {
+    const { execSync } = await import("child_process");
+    const resolved = execSync(`which ${binary}`, { encoding: "utf8" }).trim();
+    return resolved || binary;
+  } catch {
+    return binary;
+  }
+}
+
+async function doStartServer(cfg: PluginConfig): Promise<{ ok: boolean; error?: string; autoStarted?: boolean }> {
+  const binary = await resolveBinaryPath(cfg.binaryPath || "pinchtab");
   const startupTimeout = cfg.startupTimeoutMs ?? 30000;
 
   try {
@@ -86,7 +123,7 @@ export async function ensureServerRunning(cfg: PluginConfig): Promise<{ ok: bool
       await new Promise((r) => setTimeout(r, 500));
       const check = await pinchtabFetch(cfg, "/health");
       if (!check?.error) {
-        return { ok: true };
+        return { ok: true, autoStarted: true };
       }
     }
     return { ok: false, error: `Server failed to start within ${startupTimeout}ms` };

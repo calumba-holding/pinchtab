@@ -11,14 +11,14 @@ openclaw gateway restart
 
 ## Quick Start
 
-The plugin auto-starts a local PinchTab server when needed. Just install and go:
+The plugin can auto-start a local PinchTab server when needed (`autoStart: true` by default). This only works when `baseUrl` points to a local address (`localhost`, `127.0.0.1`, or `::1`).
 
 ```bash
 openclaw plugins install @pinchtab/pinchtab
 openclaw gateway restart
 ```
 
-For remote servers or Docker, disable auto-start and set `baseUrl`.
+For remote servers or Docker, set `autoStart: false` and configure `baseUrl` manually.
 
 ## Configure
 
@@ -34,10 +34,12 @@ For remote servers or Docker, disable auto-start and set `baseUrl`.
           token: "my-secret",
           timeoutMs: 30000,
 
-          // Startup (local only)
-          autoStart: true,           // auto-start server if not running
-          binaryPath: "pinchtab",    // path to binary
-          startupTimeoutMs: 30000,   // max wait for startup
+          // Auto-start (local only — localhost, 127.0.0.1, or ::1)
+          // When enabled, spawns a PinchTab server process if baseUrl
+          // points to a local address and the server is not running.
+          autoStart: true,
+          binaryPath: "pinchtab",    // absolute path or binary name in PATH
+          startupTimeoutMs: 30000,   // max wait for server to become ready
 
           // Policy
           allowEvaluate: false,      // block JS evaluate by default
@@ -222,6 +224,7 @@ pinchtab({ action: "wait", text: "Welcome back", timeout: 120000 })
 
 ## Security Notes
 
+- **Auto-start** spawns a background process — only enabled for local addresses (`localhost`, `127.0.0.1`, `::1`). Set `autoStart: false` if you prefer explicit server management.
 - **`evaluate`** is blocked by default (`allowEvaluate: false`) — enable only for trusted agents
 - Use `allowedDomains` to restrict navigation (e.g., `["*.example.com"]`)
 - Use `PINCHTAB_TOKEN` to gate API access; rotate regularly

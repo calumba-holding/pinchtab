@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert";
-import { getLastTabId, setLastTabId, resolveProfile } from "./session.ts";
+import { getLastTabId, setLastTabId, resolveProfile, isLocalHost } from "./session.ts";
 
 describe("tab session state", () => {
   beforeEach(() => {
@@ -61,5 +61,35 @@ describe("resolveProfile", () => {
     const cfg = { defaultProfile: "user", profiles: { staging: { instanceId: "s1" } } };
     const result = resolveProfile(cfg, "staging");
     assert.deepStrictEqual(result, { instanceId: "s1" });
+  });
+});
+
+describe("isLocalHost", () => {
+  it("returns true for localhost", () => {
+    assert.strictEqual(isLocalHost("http://localhost:9867"), true);
+    assert.strictEqual(isLocalHost("http://localhost"), true);
+    assert.strictEqual(isLocalHost("http://LOCALHOST:9867"), true);
+  });
+
+  it("returns true for 127.0.0.1", () => {
+    assert.strictEqual(isLocalHost("http://127.0.0.1:9867"), true);
+    assert.strictEqual(isLocalHost("http://127.0.0.1"), true);
+  });
+
+  it("returns true for IPv6 localhost", () => {
+    assert.strictEqual(isLocalHost("http://[::1]:9867"), true);
+    assert.strictEqual(isLocalHost("http://[::1]"), true);
+  });
+
+  it("returns false for remote hosts", () => {
+    assert.strictEqual(isLocalHost("http://example.com"), false);
+    assert.strictEqual(isLocalHost("http://192.168.1.1:9867"), false);
+    assert.strictEqual(isLocalHost("http://pinchtab.local:9867"), false);
+    assert.strictEqual(isLocalHost("https://api.pinchtab.com"), false);
+  });
+
+  it("returns false for invalid URLs", () => {
+    assert.strictEqual(isLocalHost("not-a-url"), false);
+    assert.strictEqual(isLocalHost(""), false);
   });
 });
