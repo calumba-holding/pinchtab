@@ -71,11 +71,6 @@ var coreEndpoints = []Endpoint{
 	{"POST", "/lock", "Lock tab", CapNone, true},
 	{"POST", "/unlock", "Unlock tab", CapNone, true},
 
-	// Human handoff
-	{"POST", "/handoff", "Pause tab for human handoff", CapNone, true},
-	{"POST", "/resume", "Resume paused tab", CapNone, true},
-	{"GET", "/handoff", "Get handoff status", CapNone, true},
-
 	// Cookies
 	{"GET", "/cookies", "Get cookies", CapNone, true},
 	{"POST", "/cookies", "Set cookies", CapNone, true},
@@ -109,6 +104,7 @@ var coreEndpoints = []Endpoint{
 
 	// Solvers
 	{"GET", "/solvers", "List available solvers", CapNone, false},
+	{"GET", "/config/autosolver", "Get autosolver runtime config", CapNone, false},
 	{"POST", "/solve", "Run default solver", CapNone, true},
 	{"POST", "/solve/{name}", "Run named solver", CapNone, true},
 

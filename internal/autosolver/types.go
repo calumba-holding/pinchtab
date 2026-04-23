@@ -10,6 +10,7 @@ const (
 	IntentCaptcha    IntentType = "captcha"    // CAPTCHA challenge (Turnstile, reCAPTCHA, hCaptcha)
 	IntentLogin      IntentType = "login"      // Login form detected
 	IntentSignup     IntentType = "signup"     // Signup/registration form detected
+	IntentForm       IntentType = "form"       // Generic form-filling flow detected
 	IntentBlocked    IntentType = "blocked"    // Navigation blocked (interstitial, bot gate)
 	IntentOnboarding IntentType = "onboarding" // Multi-step onboarding flow
 	IntentNavigation IntentType = "navigation" // Multi-step navigation task
@@ -131,7 +132,7 @@ func DefaultConfig() Config {
 		Enabled:        true,
 		MaxAttempts:    8,
 		SolverTimeout:  30 * time.Second,
-		Solvers:        []string{"cloudflare", "semantic"},
+		Solvers:        []string{"cloudflare", "semantic", "capsolver", "twocaptcha"},
 		LLMFallback:    false,
 		RetryBaseDelay: 500 * time.Millisecond,
 		RetryMaxDelay:  10 * time.Second,
