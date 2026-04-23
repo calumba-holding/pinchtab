@@ -33,7 +33,7 @@ Notes:
 - `GET /tabs/{id}/handoff` returns the current handoff state, or `active` when no handoff is set
 - when a timeout is set, status also includes `expiresAt` and `timeoutMs`
 - `POST /tabs/{id}/resume` clears the handoff state and can carry resume metadata such as `status` or `resolvedData`
-- paused tabs reject `/action`, `/actions/batch`, and `/macro` requests with `tab_paused_handoff`
+- paused tabs reject `/action`, `/actions`, and `/macro` requests with `tab_paused_handoff`
 - use this for CAPTCHA, 2FA, login approval, or other human-only steps
 
 ## Related Pages

@@ -181,7 +181,7 @@ pinchtab tab resume <tabId> --status completed
 
 API equivalents:
 
-Paused handoff state blocks action execution routes (`/action`, `/actions/batch`, `/macro`) with `409 tab_paused_handoff`
+Paused handoff state blocks action execution routes (`/action`, `/actions`, `/macro`) with `409 tab_paused_handoff`
 until resumed or expired via timeout.
 
 ```bash
