@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# dev-e2e.sh — run a single E2E test by name, with a fresh build.
+# dev-e2e.sh — locate one start_test block, then delegate to the Go E2E runner.
 #
 # Usage:
 #   scripts/dev-e2e.sh "<test name substring>"
-#   scripts/dev-e2e.sh "humanClick: click input by ref"
+#   scripts/dev-e2e.sh "click with humanize"
 #   scripts/dev-e2e.sh "scroll (down)"
 #
-# Locates the matching scenario file, infers the suite (api/cli/infra/plugin)
-# and whether it's an -extended scenario, then dispatches the Go e2e runner
-# with the right filter+test arguments.
+# This script is a convenience lookup wrapper, not an execution boundary. The
+# Go runner still owns suite planning, compose services, logs, reports, and
+# scenario execution.
 
 set -euo pipefail
 
@@ -57,9 +57,11 @@ case "${scenario_dir}" in
     ;;
 esac
 
-# Plugin suite has no extended variant; basic/extended scenarios in api/cli/
-# infra map to the corresponding -extended dispatcher entry.
-if [ "${suite}" != "plugin" ] && [[ "${scenario_file}" == *-extended.sh ]]; then
+# Smoke is a separate tier across groups; the smoke meta-suite plus the
+# scenario filename filter selects the matching group.
+if [[ "${scenario_file}" == *-smoke.sh ]]; then
+  dispatch="smoke"
+elif [ "${suite}" != "plugin" ] && [[ "${scenario_file}" == *-extended.sh ]]; then
   dispatch="${suite}-extended"
 else
   dispatch="${suite}"

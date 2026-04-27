@@ -121,7 +121,7 @@ assert_eval_poll "window.innerHeight === ${ROTATE_HEIGHT}" "true" "rotated viewp
 end_test
 
 # Tests the core stealth invariants from GitHub issue #275.
-# This is the API fast-suite bot scenario.
+# This is the basic-suite bot scenario.
 
 start_test "bot-detect: navigate to test page"
 

@@ -1,5 +1,8 @@
 # Go E2E Runner Plan
 
+> Historical implementation plan. The canonical operating contract now lives in
+> `TESTING.md` and `tests/e2e/README.md`.
+
 ## Goal
 
 Extend `tests/tools/runner` so one Go command can support both the existing benchmark/optimization runner and a deterministic e2e runner.
@@ -15,7 +18,7 @@ Implemented through host orchestration and explicit scenario selection:
 - `internal/e2e` owns suite parsing, Docker Compose lifecycle, suite matrix, log mode, captured output logs, summary/report generation, failure artifacts, and exact scenario file selection.
 - `tests/e2e/run.sh` accepts explicit `scenario=<file>` arguments and acts as the in-container executor. It has no scenario discovery, filter fallback, or durable report writing.
 - The old `scripts/e2e.sh` host dispatcher and e2e aliases are removed.
-- Smoke suites are wired through the Go runner. Initial infra smoke coverage lives in `orchestrator-smoke.sh` and `security-smoke.sh`; lifecycle/docker smoke splits remain follow-up work.
+- Smoke suites are wired through the Go runner. Infra smoke coverage includes orchestrator, security, autosolver, dashboard, lifecycle, and host Docker smoke checks.
 
 ## Target Commands
 

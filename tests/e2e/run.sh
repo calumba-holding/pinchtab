@@ -1,5 +1,5 @@
 #!/bin/bash
-# run.sh - Run grouped E2E scenarios for a suite directory.
+# run.sh - Container executor for explicit E2E scenario files.
 
 set -uo pipefail
 

@@ -32,6 +32,8 @@ pinchtab forward                        # Go forward in the active tab
 pinchtab reload                         # Reload the active tab
 ```
 
+Use `--tab <id>` when you intend to replace an existing tab's URL. Unscoped reads and actions use the current tracked tab, but unscoped `nav` intentionally opens a new tab to avoid replacing active work by accident.
+
 Hidden aliases: `goto`, `navigate`, `open`
 
 ## Tabs

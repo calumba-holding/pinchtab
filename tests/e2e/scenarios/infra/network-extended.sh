@@ -382,7 +382,7 @@ fi
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-# Network basics (moved from browser-full for grouping)
+# Network basics kept with network coverage for grouping
 # ─────────────────────────────────────────────────────────────────
 
 start_test "GET /network: list entries with filters"

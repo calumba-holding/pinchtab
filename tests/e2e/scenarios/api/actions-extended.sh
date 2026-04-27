@@ -142,22 +142,22 @@ assert_json_contains "$RESULT" '.result' 'mouseup' "sequence includes mouseup"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanClick: click input by ref"
+start_test "click with humanize: click input by ref"
 
 navigate_fixture "human-type.html"
 fresh_snapshot
 
 require_ref "textbox" "Email" EMAIL_REF && \
-  action_human_click "$EMAIL_REF"
+  action_click_humanized "$EMAIL_REF"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanType: type into input by ref"
+start_test "type with humanize: type into input by ref"
 
 fresh_snapshot
 require_ref "textbox" "Email" EMAIL_REF && {
-  action_human_type "$EMAIL_REF" "test@example.com"
+  action_type_humanized "$EMAIL_REF" "test@example.com"
 
   fresh_snapshot
   assert_value "textbox" "Email" "test@example.com"
@@ -166,11 +166,11 @@ require_ref "textbox" "Email" EMAIL_REF && {
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanType: type into second input by ref"
+start_test "type with humanize: type into second input by ref"
 
 fresh_snapshot
 require_ref "textbox" "Name" NAME_REF && {
-  action_human_type "$NAME_REF" "John Doe"
+  action_type_humanized "$NAME_REF" "John Doe"
 
   fresh_snapshot
   assert_value "textbox" "Name" "John Doe"
@@ -179,9 +179,9 @@ require_ref "textbox" "Name" NAME_REF && {
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanType: type with CSS selector"
+start_test "type with humanize: type with CSS selector"
 
-action_human_type_selector "#name" " Jr."
+action_type_humanized_selector "#name" " Jr."
 
 end_test
 

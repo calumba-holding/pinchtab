@@ -29,11 +29,11 @@ COMMANDS=(
   "  basic:🐳:Basic suite (api + cli + infra)"
   "  extended:🐳:Extended suite (all extended)"
   "  smoke:🐳:Smoke suite"
-  "  docker:🐳:Docker smoke suite"
+  "  smoke-docker:🐳:Host Docker smoke checks only"
   "  api:🐳:API basic tests"
   "  cli:🐳:CLI basic tests"
   "  infra:🐳:Infra basic tests"
-  "  plugin:🐳:Plugin smoke tests"
+  "  plugin:🐳:Plugin tests"
   "  api-extended:🐳:API extended (multi-instance)"
   "  cli-extended:🐳:CLI extended tests"
   "  infra-extended:🐳:Infra extended (multi-instance)"
@@ -229,26 +229,6 @@ run_command() {
       echo ""
       exec bash scripts/test.sh system
       ;;
-    "e2e docker")
-      echo "  ${ACCENT}${BOLD}💨 Docker smoke test${NC}"
-      echo ""
-      run_e2e_runner smoke-docker
-      ;;
-    "e2e docker "*)
-      local docker_args="${target#e2e docker }"
-      if [[ "$docker_args" == --* || "$docker_args" == *=* ]]; then
-        echo "  ${ACCENT}${BOLD}💨 Docker smoke test${NC}"
-        echo ""
-        read -r -a e2e_docker_args <<< "$docker_args"
-        run_e2e_runner smoke-docker "${e2e_docker_args[@]}"
-      else
-        local image="$docker_args"
-        echo "  ${ACCENT}${BOLD}💨 Docker smoke test${NC}"
-        echo ""
-        export PINCHTAB_DOCKER_SMOKE_RELEASE_IMAGE="$image"
-        run_e2e_runner smoke-docker --filter release
-      fi
-      ;;
     "opt")
       echo "  ${ACCENT}${BOLD}⚡ Optimization${NC}"
       echo ""
@@ -417,17 +397,6 @@ if [ $# -gt 0 ]; then
         echo "  ${ACCENT}${BOLD}🎯 Single E2E test${NC}"
         echo ""
         exec env E2E_LOGS="${E2E_LOGS:-show}" bash scripts/dev-e2e.sh "$3"
-      fi
-      if [ "${2:-}" = "docker" ]; then
-        if [ $# -gt 2 ]; then
-          if [[ "${3:-}" == --* || "${3:-}" == *=* ]]; then
-            run_e2e_runner smoke-docker "${@:3}"
-          else
-            export PINCHTAB_DOCKER_SMOKE_RELEASE_IMAGE="$3"
-            run_e2e_runner smoke-docker --filter release "${@:4}"
-          fi
-        fi
-        run_e2e_runner smoke-docker
       fi
       run_e2e_runner "${@:2}"
       ;;

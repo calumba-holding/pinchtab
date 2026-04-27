@@ -47,6 +47,23 @@ End-to-end tests launch a real pinchtab server with Chrome and run e2e-level tes
 - **cli** — CLI command tests
 - **infra** — System, network, security, stealth, orchestration
 
+### E2E Boundary
+
+The Go runner is the execution boundary for E2E. `go run ./tests/tools/runner e2e ...` owns suite expansion, scenario discovery, manifest metadata, compose service selection, readiness waits, container arguments, host Docker smoke checks, logs, reports, failure accounting, and GitHub Actions outputs. Scenario files and helpers own the actual assertions and API or CLI interactions.
+
+`tests/e2e/scenarios/manifest.json` is metadata, not a scenario list. It only overrides tier, helper, required compose services, readiness targets, and tags. Filename suffixes provide the default tier: `*-basic.sh` is `basic`, `*-smoke.sh` is `smoke`, and every other scenario is `extended`.
+
+Tier meanings:
+- `basic` is the fast PR happy path
+- `extended` is deeper coverage and includes matching `basic` scenarios
+- `smoke` is separate high-setup coverage and does not include `basic` or `extended`
+
+Add new scenarios under `tests/e2e/scenarios/<group>/`, choose the tier by filename, add manifest metadata only for non-default service/readiness/helper/tags, and verify selection with `go run ./tests/tools/runner e2e --suite <suite> --filter <name> --dry-run`.
+
+`--filter` is a case-sensitive scenario selector over file name, manifest key, group, tier, helper, and tags. It runs before compose planning, so unmatched suites are skipped and only required services start. `--test` is narrower: it runs one matching `start_test` block inside the already-selected scenarios.
+
+CI uses `.github/workflows/reusable-e2e.yml` and `.github/workflows/reusable-smoke.yml`, both calling the Go runner directly. The workflow layer decides when to run; the Go layer decides what to run and how to report it.
+
 ### Basic Suites
 
 ```bash
@@ -164,7 +181,7 @@ The runner clears the target suite files before each run so stale results do not
 
 ## Writing New E2E Tests
 
-Add new coverage directly to a grouped entrypoint in `tests/e2e/scenarios/api/`, `tests/e2e/scenarios/cli/`, or `tests/e2e/scenarios/infra/`. Keep `*-basic.sh` focused on the happy path and put the extra and edge-case coverage in the matching `*-extended.sh`.
+Add new coverage directly to a grouped entrypoint in `tests/e2e/scenarios/api/`, `tests/e2e/scenarios/cli/`, `tests/e2e/scenarios/infra/`, or `tests/e2e/scenarios/plugin/`. Keep `*-basic.sh` focused on the PR happy path, put deeper coverage in the matching `*-extended.sh`, and put slow/high-setup checks in `*-smoke.sh`. Add manifest metadata only when the scenario needs non-default services, readiness targets, helper, tier, or tags.
 
 ### Example: Grouped API Entrypoint
 

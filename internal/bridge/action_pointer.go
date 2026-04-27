@@ -23,11 +23,8 @@ var mouseUpByCoordinateAction = MouseUpByCoordinate
 //  2. Per-instance default: bridge Config.Humanize
 //  3. Built-in default: false
 //
-// The action kind is intentionally NOT consulted — both click/type and
-// humanClick/humanType honour the same resolution. This means
-// `kind: humanClick` defaults to raw input unless config.humanize=true
-// or the request explicitly sets humanize:true; callers who relied on
-// the legacy auto-humanizing behaviour need to opt in.
+// The action kind is intentionally NOT consulted. The public API uses
+// click/type with humanize=true instead of separate humanized action names.
 func (b *Bridge) effectiveHumanize(req ActionRequest) bool {
 	if req.Humanize != nil {
 		return *req.Humanize
@@ -108,10 +105,9 @@ func submitFormIfButton(ctx context.Context, selector string) (bool, error) {
 
 func (b *Bridge) actionClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
 	// Promote to the humanized click path when the caller (or instance
-	// config) opted in via humanize=true. The guard on req.Kind avoids
-	// ping-ponging when actionHumanClick has already delegated here.
-	if req.Kind != ActionHumanClick && b.effectiveHumanize(req) {
-		return b.actionHumanClick(ctx, req)
+	// config) opted in via humanize=true.
+	if b.effectiveHumanize(req) {
+		return b.actionHumanizedClick(ctx, req)
 	}
 
 	// Arm a one-shot dialog auto-handler if the caller expects the click
@@ -463,15 +459,7 @@ func (b *Bridge) actionDrag(ctx context.Context, req ActionRequest) (map[string]
 	return nil, fmt.Errorf("need selector, ref, or nodeId")
 }
 
-func (b *Bridge) actionHumanClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
-	// Fall through to the raw click path when humanization is disabled.
-	// `kind: humanClick` is preserved as an action name for back-compat,
-	// but its bezier+sleeps semantics now require humanize=true (either
-	// per-request or via instance config).
-	if !b.effectiveHumanize(req) {
-		return b.actionClick(ctx, req)
-	}
-
+func (b *Bridge) actionHumanizedClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
 	var backendNodeID cdp.BackendNodeID
 	switch {
 	case req.NodeID > 0:
@@ -486,7 +474,7 @@ func (b *Bridge) actionHumanClick(ctx context.Context, req ActionRequest) (map[s
 		return nil, fmt.Errorf("need selector, ref, or nodeId")
 	}
 
-	// Run the multi-step humanClick (bezier mouse-move + press + release) in
+	// Run the multi-step humanized click (bezier mouse-move + press + release) in
 	// a goroutine and poll for blocking dialogs. Without this, a dialog or
 	// dialog-like popup opened by the click would hang the renderer for the
 	// full action timeout. Mirrors the wrapping used by actionClick.

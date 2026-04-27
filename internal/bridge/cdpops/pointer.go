@@ -54,8 +54,14 @@ func dispatchRealMouseMove(ctx context.Context, x, y float64, button input.Mouse
 	}))
 }
 
+var (
+	dispatchRealMouseMoveFunc            = dispatchRealMouseMove
+	dispatchSyntheticMouseMoveFunc       = dispatchSyntheticMouseMove
+	dispatchSyntheticMouseMoveOnNodeFunc = dispatchSyntheticMouseMoveOnNode
+)
+
 func dispatchMouseMove(ctx context.Context, x, y float64, button input.MouseButton, buttons int64) error {
-	err := dispatchRealMouseMove(ctx, x, y, button, buttons)
+	err := dispatchRealMouseMoveFunc(ctx, x, y, button, buttons)
 	if err == nil {
 		return nil
 	}
@@ -65,11 +71,11 @@ func dispatchMouseMove(ctx context.Context, x, y float64, button input.MouseButt
 	if !errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	return dispatchSyntheticMouseMove(ctx, x, y, button, buttons)
+	return dispatchSyntheticMouseMoveFunc(ctx, x, y, button, buttons)
 }
 
 func dispatchMouseMoveToNode(ctx context.Context, nodeID int64, x, y float64, button input.MouseButton, buttons int64) error {
-	err := dispatchRealMouseMove(ctx, x, y, button, buttons)
+	err := dispatchRealMouseMoveFunc(ctx, x, y, button, buttons)
 	if err == nil {
 		return nil
 	}
@@ -79,7 +85,7 @@ func dispatchMouseMoveToNode(ctx context.Context, nodeID int64, x, y float64, bu
 	if !errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	return dispatchSyntheticMouseMoveOnNode(ctx, nodeID, button, buttons)
+	return dispatchSyntheticMouseMoveOnNodeFunc(ctx, nodeID, button, buttons)
 }
 
 func dispatchSyntheticMouseMove(ctx context.Context, x, y float64, button input.MouseButton, buttons int64) error {

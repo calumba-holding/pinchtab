@@ -1,5 +1,8 @@
 # Smoke E2E Plan
 
+> Historical implementation plan. The canonical operating contract now lives in
+> `TESTING.md` and `tests/e2e/README.md`.
+
 ## Goal
 
 Create a proper slow smoke lane so default e2e stays fast, while expensive topology and lifecycle tests remain easy to run deliberately.
