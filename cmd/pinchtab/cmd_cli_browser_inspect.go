@@ -69,6 +69,48 @@ var textCmd = &cobra.Command{
 	},
 }
 
+var titleCmd = &cobra.Command{
+	Use:   "title",
+	Short: "Get the current tab title",
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Title(rt.client, rt.base, rt.token, cmd)
+		})
+	},
+}
+
+var urlCmd = &cobra.Command{
+	Use:   "url",
+	Short: "Get the current tab URL",
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.URL(rt.client, rt.base, rt.token, cmd)
+		})
+	},
+}
+
+var htmlCmd = &cobra.Command{
+	Use:   "html [selector]",
+	Short: "Get document or element HTML",
+	Args:  cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.HTML(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
+var stylesCmd = &cobra.Command{
+	Use:   "styles [selector]",
+	Short: "Get computed styles for the root element or a matched element",
+	Args:  cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Styles(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
 var downloadCmd = &cobra.Command{
 	Use:   "download <url>",
 	Short: "Download a file via browser session",
