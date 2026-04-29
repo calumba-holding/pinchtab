@@ -10,13 +10,14 @@ import "fmt"
 type Capability string
 
 const (
-	CapNone        Capability = ""
-	CapEvaluate    Capability = "evaluate"
-	CapMacro       Capability = "macro"
-	CapScreencast  Capability = "screencast"
-	CapDownload    Capability = "download"
-	CapUpload      Capability = "upload"
-	CapStateExport Capability = "stateExport"
+	CapNone             Capability = ""
+	CapEvaluate         Capability = "evaluate"
+	CapMacro            Capability = "macro"
+	CapScreencast       Capability = "screencast"
+	CapDownload         Capability = "download"
+	CapUpload           Capability = "upload"
+	CapStateExport      Capability = "stateExport"
+	CapNetworkIntercept Capability = "networkIntercept"
 )
 
 // Endpoint describes a single API route.
@@ -95,6 +96,9 @@ var coreEndpoints = []Endpoint{
 	{"GET", "/network/export/stream", "Export HAR stream", CapNone, true},
 	{"GET", "/network/{requestId}", "Single network request", CapNone, true},
 	{"POST", "/network/clear", "Clear network log", CapNone, false},
+	{"GET", "/network/route", "List interception rules for a tab", CapNetworkIntercept, true},
+	{"POST", "/network/route", "Install an interception rule", CapNetworkIntercept, true},
+	{"DELETE", "/network/route", "Remove interception rule(s)", CapNetworkIntercept, true},
 
 	// Console & errors
 	{"GET", "/console", "Console logs", CapNone, false},

@@ -79,6 +79,7 @@ func registerBrowserCommands() {
 	keyboardCmd.AddCommand(keyboardTypeCmd, keyboardInsertTextCmd)
 	dialogCmd.AddCommand(dialogAcceptCmd, dialogDismissCmd)
 	mouseCmd.AddCommand(mouseMoveCmd, mouseDownCmd, mouseUpCmd, mouseWheelCmd)
+	networkCmd.AddCommand(networkRouteCmd, networkUnrouteCmd)
 
 	configureBrowserFlags()
 
@@ -373,6 +374,15 @@ func configureBrowserFlags() {
 	)
 
 	scrollintoviewCmd.Flags().String("css", "", "CSS selector instead of ref")
+
+	networkRouteCmd.Flags().Bool("abort", false, "Block matching requests instead of letting them through")
+	networkRouteCmd.Flags().String("body", "", "Fulfill matching requests with this JSON body (mutually exclusive with --abort)")
+	networkRouteCmd.Flags().String("resource-type", "", "Limit to a CDP resource category (e.g. script, image, xhr, fetch)")
+	networkRouteCmd.Flags().String("content-type", "", "(With --body) Response Content-Type (default application/json)")
+	networkRouteCmd.Flags().Int("status", 0, "(With --body) Response status code (default 200)")
+	networkRouteCmd.Flags().String("method", "", "Limit to an HTTP method (GET, POST, ...). Fulfill rules without --method skip OPTIONS preflights to avoid breaking CORS.")
+	addTabFlag(networkRouteCmd, networkUnrouteCmd)
+	addJSONFlag(networkRouteCmd, networkUnrouteCmd)
 
 	networkCmd.Flags().String("filter", "", "URL pattern filter")
 	networkCmd.Flags().String("method", "", "HTTP method filter (GET, POST, etc)")

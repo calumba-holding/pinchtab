@@ -133,6 +133,7 @@ export interface BackendSecurityConfig {
   allowScreencast: boolean;
   allowDownload: boolean;
   allowUpload: boolean;
+  allowNetworkIntercept: boolean;
   allowedDomains: string[];
   trustedProxyCIDRs: string[];
   trustedResolveCIDRs: string[];
@@ -261,6 +262,7 @@ export const defaultBackendConfig: BackendConfig = {
     allowScreencast: false,
     allowDownload: false,
     allowUpload: false,
+    allowNetworkIntercept: false,
     allowedDomains: ["127.0.0.1", "localhost", "::1"],
     trustedProxyCIDRs: [],
     trustedResolveCIDRs: [],
