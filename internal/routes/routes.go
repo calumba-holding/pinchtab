@@ -45,7 +45,7 @@ func (e Endpoint) TabRoute() string {
 // coreEndpoints is the canonical list of API endpoints.
 var coreEndpoints = []Endpoint{
 	// Navigation
-	{"POST", "/navigate", "Navigate to URL", CapNone, true},
+	{"POST", "/navigate", "Navigate URL or create tab", CapNone, true},
 	{"POST", "/back", "Go back", CapNone, true},
 	{"POST", "/forward", "Go forward", CapNone, true},
 	{"POST", "/reload", "Reload page", CapNone, true},
@@ -71,7 +71,7 @@ var coreEndpoints = []Endpoint{
 	{"POST", "/find", "Find elements", CapNone, true},
 
 	// Tab management
-	{"POST", "/tab", "Open or switch tab", CapNone, false},
+	{"POST", "/tab", "Create or focus tab", CapNone, false},
 	{"POST", "/close", "Close tab", CapNone, true},
 	{"POST", "/lock", "Lock tab", CapNone, true},
 	{"POST", "/unlock", "Unlock tab", CapNone, true},
