@@ -94,6 +94,7 @@ func (fc FileConfig) MarshalJSON() ([]byte, error) {
 			AllowMacro:             fc.Security.AllowMacro,
 			AllowScreencast:        fc.Security.AllowScreencast,
 			AllowDownload:          fc.Security.AllowDownload,
+			AllowNetworkIntercept:  fc.Security.AllowNetworkIntercept,
 			AllowedDomains:         effectiveSecurityAllowedDomains(fc.Security),
 			DownloadAllowedDomains: copyStringSlice(fc.Security.DownloadAllowedDomains),
 			DownloadMaxBytes:       fc.Security.DownloadMaxBytes,
@@ -249,6 +250,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 	allowMacro := cfg.AllowMacro
 	allowScreencast := cfg.AllowScreencast
 	allowDownload := cfg.AllowDownload
+	allowNetworkIntercept := cfg.AllowNetworkIntercept
 	downloadAllowedDomains := copyStringSlice(cfg.DownloadAllowedDomains)
 	downloadMaxBytes := cfg.EffectiveDownloadMaxBytes()
 	allowUpload := cfg.AllowUpload
@@ -344,6 +346,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 			AllowMacro:             &allowMacro,
 			AllowScreencast:        &allowScreencast,
 			AllowDownload:          &allowDownload,
+			AllowNetworkIntercept:  &allowNetworkIntercept,
 			AllowedDomains:         append([]string(nil), cfg.AllowedDomains...),
 			DownloadAllowedDomains: downloadAllowedDomains,
 			DownloadMaxBytes:       &downloadMaxBytes,

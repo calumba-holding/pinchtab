@@ -103,6 +103,7 @@ export const securityEndpointRows = [
   ["allowScreencast", "Allow screencast"],
   ["allowDownload", "Allow download"],
   ["allowUpload", "Allow upload"],
+  ["allowNetworkIntercept", "Allow network interception"],
 ] as const satisfies ReadonlyArray<readonly [SecurityEndpointKey, string]>;
 
 export const idpiToggleRows = [
