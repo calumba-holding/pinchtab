@@ -447,6 +447,97 @@ func TestWriteGitHubActionsMetadataAddsRunnerFailureWithoutSuiteResults(t *testi
 	}
 }
 
+func TestBuildSharedStackRetriesNoCacheOnBuildKitSnapshotFailure(t *testing.T) {
+	tmp := t.TempDir()
+	callsPath := filepath.Join(tmp, "calls.txt")
+	scriptPath := filepath.Join(tmp, "compose.sh")
+	t.Setenv("CALLS_FILE", callsPath)
+
+	script := `#!/bin/sh
+printf '%s\n' "$*" >> "$CALLS_FILE"
+case "$*" in
+  *"build --no-cache"*)
+    exit 0
+    ;;
+  *"build"*)
+    echo "failed to solve: failed to stat active key during commit: snapshot abc does not exist: not found" >&2
+    exit 17
+    ;;
+esac
+exit 0
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	r := &Runner{
+		stdout:   &stdout,
+		stderr:   &stderr,
+		repoRoot: tmp,
+		compose:  []string{scriptPath},
+		logsMode: "hide",
+	}
+
+	if code := r.buildSharedStack("compose.yml"); code != 0 {
+		t.Fatalf("buildSharedStack returned %d, stderr: %s", code, stderr.String())
+	}
+	calls, err := os.ReadFile(callsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"-f compose.yml build",
+		"-f compose.yml build --no-cache",
+	} {
+		if !strings.Contains(string(calls), want) {
+			t.Fatalf("expected compose call %q, got:\n%s", want, calls)
+		}
+	}
+	if !strings.Contains(stdout.String(), "retrying shared-stack build with --no-cache") {
+		t.Fatalf("stdout should mention retry, got:\n%s", stdout.String())
+	}
+}
+
+func TestBuildSharedStackDoesNotRetryNonCacheFailure(t *testing.T) {
+	tmp := t.TempDir()
+	callsPath := filepath.Join(tmp, "calls.txt")
+	scriptPath := filepath.Join(tmp, "compose.sh")
+	t.Setenv("CALLS_FILE", callsPath)
+
+	script := `#!/bin/sh
+printf '%s\n' "$*" >> "$CALLS_FILE"
+echo "real build error" >&2
+exit 23
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	r := &Runner{
+		stdout:   &stdout,
+		stderr:   &stderr,
+		repoRoot: tmp,
+		compose:  []string{scriptPath},
+		logsMode: "hide",
+	}
+
+	if code := r.buildSharedStack("compose.yml"); code != 23 {
+		t.Fatalf("buildSharedStack returned %d, want 23; stderr: %s", code, stderr.String())
+	}
+	calls, err := os.ReadFile(callsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(calls), "build") != 1 {
+		t.Fatalf("non-cache failure should not retry, calls:\n%s", calls)
+	}
+	if strings.Contains(stdout.String(), "--no-cache") {
+		t.Fatalf("stdout should not mention no-cache retry, got:\n%s", stdout.String())
+	}
+}
+
 func TestStructuredEventTeeFiltersHumanOutputOnly(t *testing.T) {
 	var human, log bytes.Buffer
 	tee := &structuredEventTee{human: &human, log: &log}

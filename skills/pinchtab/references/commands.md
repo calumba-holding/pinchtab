@@ -73,6 +73,8 @@ pinchtab nav <url> --new-tab # Open a new tab and navigate it
 pinchtab tab close <tabId>   # Close specific tab
 ```
 
+Unscoped commands resolve the current tab by caller identity. Session-authenticated callers use a current tab scoped to that session; `--agent-id` / `PINCHTAB_AGENT_ID` callers use a current tab scoped to that agent when no session is present; anonymous CLI calls use the shared local current-tab state file.
+
 ---
 
 ## Interaction Commands

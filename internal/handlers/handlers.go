@@ -33,8 +33,13 @@ type Handlers struct {
 	Recovery     *recovery.RecoveryEngine
 	Router       *engine.Router // optional; nil ⇒ chrome-only
 	IDPIGuard    idpi.Guard
+	CurrentTabs  *CurrentTabStore
 	Version      string // build version injected at startup
 	clipboard    clipboardStore
+
+	// emptyPointerPolicy controls behavior when an identified caller omits
+	// tabId and has no stored scoped current tab. See EmptyPointerPolicy.
+	emptyPointerPolicy EmptyPointerPolicy
 
 	// Optional dependency injection (for unit testing)
 	evalJS           func(ctx context.Context, expression string, out *string) error
@@ -56,6 +61,7 @@ func New(b bridge.BridgeAPI, cfg *config.RuntimeConfig, p bridge.ProfileService,
 		Matcher:      matcher,
 		IntentCache:  intentCache,
 		IDPIGuard:    idpi.NewGuard(cfg.IDPI, cfg.AllowedDomains),
+		CurrentTabs:  NewCurrentTabStore(),
 	}
 
 	// Wire up the recovery engine with callbacks that delegate back to
@@ -98,6 +104,27 @@ func New(b bridge.BridgeAPI, cfg *config.RuntimeConfig, p bridge.ProfileService,
 	go CleanupStaleTmpExports(cfg.StateDir)
 
 	return h
+}
+
+// SetEmptyPointerPolicy configures behavior when an identified caller
+// omits tabId and has no stored scoped current tab. Default is lazy.
+func (h *Handlers) SetEmptyPointerPolicy(p EmptyPointerPolicy) {
+	if h == nil {
+		return
+	}
+	if p == "" {
+		p = EmptyPointerLazy
+	}
+	h.emptyPointerPolicy = p
+}
+
+// EmptyPointerPolicy returns the active empty-pointer policy. Defaults to
+// lazy when not configured.
+func (h *Handlers) EmptyPointerPolicy() EmptyPointerPolicy {
+	if h == nil || h.emptyPointerPolicy == "" {
+		return EmptyPointerLazy
+	}
+	return h.emptyPointerPolicy
 }
 
 type restartStatusProvider interface {

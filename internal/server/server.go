@@ -88,6 +88,10 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 			Instance: evt.Instance,
 		})
 	})
+
+	// Drop identity → instance bindings and the instance's scoped current
+	// tab when a session is revoked, expires, or is pruned.
+	sessionStore.OnLifecycle(orch.SessionLifecycleHook())
 	actStore, err := activity.NewRecorder(activity.Config{
 		Enabled:       cfg.Observability.Activity.Enabled,
 		RetentionDays: cfg.Observability.Activity.RetentionDays,
@@ -231,12 +235,14 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 
 	mux.HandleFunc("GET /health", configAPI.HandleHealth)
 
-	handler := handlers.RequestIDMiddleware(
-		activity.Middleware(
-			liveActivity,
-			"server",
-			handlers.SecurityHeadersMiddleware(cfg,
-				handlers.LoggingMiddleware(handlers.RateLimitMiddleware(handlers.CorsMiddleware(cfg, handlers.AuthMiddlewareWithSessions(cfg, sessions, sessionStore, mux)))),
+	handler := handlers.StripInternalHeadersMiddleware(
+		handlers.RequestIDMiddleware(
+			activity.Middleware(
+				liveActivity,
+				"server",
+				handlers.SecurityHeadersMiddleware(cfg,
+					handlers.LoggingMiddleware(handlers.RateLimitMiddleware(handlers.CorsMiddleware(cfg, handlers.AuthMiddlewareWithSessions(cfg, sessions, sessionStore, mux)))),
+				),
 			),
 		),
 	)
@@ -256,6 +262,9 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 		slog.Error("strategy start failed", "strategy", activeStrategy.Name(), "err", err)
 	}
 
+	maintenanceCtx, maintenanceCancel := context.WithCancel(context.Background())
+	go orch.RunMaintenance(maintenanceCtx)
+
 	shutdownOnce := &sync.Once{}
 	doShutdown := func() {
 		shutdownOnce.Do(func() {
@@ -271,6 +280,7 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 				sched.Stop()
 			}
 			syncCancel()
+			maintenanceCancel()
 			dash.Shutdown()
 			orch.Shutdown()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
