@@ -27,7 +27,7 @@ CLI-first browser skill. Use `pinchtab` commands.
 
 ## Core Workflow
 
-1. Ensure the right profile/instance is selected when needed.
+1. Create a session: `export PINCHTAB_SESSION=$(pinchtab session create --agent-id myagent)` — do this once before any browser command.
 2. Navigate: `pinchtab nav <url> --snap` — auto-starts the local server if needed, then returns tab ID + interactive snapshot in one call.
 3. Interact: `pinchtab click <ref> --snap-diff` — returns OK + only changed elements (most token-efficient).
 4. For read-only observation: `pinchtab text` when you won't act on refs.
@@ -76,6 +76,20 @@ Pages showing "Just a moment..." etc.: `POST /solve {"maxAttempts":3}` (or `/tab
 
 Patterns: (1) one-off `pinchtab instance start`; (2) reuse profile `instance start --profile work --mode headed`, switch to headless after login; (3) HTTP `POST /profiles` then `POST /profiles/<name>/start`; (4) human-assisted headed login, agent reuses headless. Agent sessions: `pinchtab session create --agent-id <id>` or `POST /sessions` → set `PINCHTAB_SESSION=ses_...`.
 
+## Configuration
+
+Config file: `~/.pinchtab/config.json`. Edit it directly to change settings — no need for `PINCHTAB_CONFIG` or temp files.
+
+```bash
+pinchtab config show          # view current config
+pinchtab security             # review security posture
+```
+
+Key settings agents may need to change:
+- `security.allowEvaluate`: enable `eval` command (`true`/`false`)
+- `security.allowedDomains`: list of allowed hostnames (e.g. `["localhost", "127.0.0.1"]`)
+- `instanceDefaults.headless`: run Chrome headless (`true`) or headed (`false`)
+
 ## Essential Commands
 
 ### Server and targeting
@@ -85,6 +99,8 @@ pinchtab server | daemon install | health
 pinchtab instances | profiles
 pinchtab --server http://localhost:9868 snap -i -c  # target a specific instance
 ```
+
+`pinchtab server` prints `READY` to stdout when the browser instance is up and ready to accept commands. Read its output — it includes hints on how to get started (session creation, first nav).
 
 ### Navigation and tabs
 
@@ -98,9 +114,13 @@ pinchtab tab close <tab-id>
 pinchtab instance navigate <instance-id> <url>
 ```
 
-Tab state is automatic: `nav` persists the tab ID to a state file, and subsequent commands read it. Just run `pinchtab nav URL` then `pinchtab snap -i -c` — the tab is remembered. For explicit control, use `--tab <id>`.
+Anonymous commands share a single current tab — if anything else navigates that tab, your next command hits the wrong page. Always create a session before your first `nav`:
 
-**Parallel agents**: when multiple agents share the same browser instance, the automatic tab state file becomes a race condition — one agent's `nav` overwrites another's tab ID. Each agent must manage its own tab ID explicitly: open with `nav <url> --new-tab`, capture the tab ID from the output, and pass `--tab <id>` on every subsequent command (`snap`, `click`, `fill`, `text`, `eval`, `press`, `scroll`, `frame`, etc.).
+```bash
+export PINCHTAB_SESSION=$(pinchtab session create --agent-id myagent)
+```
+
+All subsequent commands use that session's dedicated tab automatically — no `--new-tab` or `--tab <id>` needed.
 
 ### Observation
 
@@ -189,14 +209,7 @@ pinchtab upload /absolute/path -s <css>
 
 ### HTTP API fallback
 
-Use curl only when CLI is unavailable. Instance port (e.g. 9867):
-
-- `POST /navigate` `{"url":"..."}`
-- `GET /snapshot?filter=interactive&format=compact`
-- `POST /action` `{"kind":"fill","selector":"e3","text":"..."}` — kinds: click (`waitNav:true`), fill, type, press, select, hover, scroll (`scrollX`/`scrollY`/`selector`), drag (`dragX`/`dragY`).
-- `POST /actions` — batch in one round-trip. Body: array or `{"actions":[...],"stopOnError":true,"tabId":"..."}`. Response has per-step `{index, success, result?, error?}`.
-- `GET /text`, `POST /solve` `{"maxAttempts":3}`.
-- Tab-scoped: `/tabs/TAB_ID/<endpoint>` for `navigate|snapshot|text|action|actions|screenshot|pdf|back|forward|close|wait|download|upload|handoff|resume|solve`. Auth: `Authorization: Bearer <token>`.
+Use curl only when the CLI is unavailable. See [api.md](./references/api.md) for full endpoint reference.
 
 ## Common Patterns
 

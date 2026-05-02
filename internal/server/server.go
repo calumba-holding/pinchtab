@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -36,6 +37,10 @@ import (
 )
 
 func RunDashboard(cfg *config.RuntimeConfig, version string) {
+	if !cfg.VerboseStartup {
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}
+
 	// Clean up orphaned Chrome processes from previous crashed runs
 	bridge.CleanupOrphanedChromeProcesses(cfg.ProfileDir)
 
@@ -87,6 +92,21 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 			Type:     evt.Type,
 			Instance: evt.Instance,
 		})
+	})
+
+	// Print machine-readable READY line when first instance starts.
+	readyOnce := &sync.Once{}
+	orch.OnEvent(func(evt orchestrator.InstanceEvent) {
+		if evt.Type == "instance.started" && evt.Instance != nil {
+			readyOnce.Do(func() {
+				if dashPort != "9867" {
+					fmt.Printf("READY port=%s\n", dashPort)
+				} else {
+					fmt.Println("READY")
+				}
+				fmt.Println("HINT: export PINCHTAB_SESSION=$(pinchtab session create --agent-id myagent) && pinchtab nav https://pinchtab.com --snap")
+			})
+		}
 	})
 
 	// Drop identity → instance bindings and the instance's scoped current
@@ -182,14 +202,16 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 		listenStatus = "running"
 	}
 
-	cli.PrintStartupBanner(cfg, cli.StartupBannerOptions{
-		Mode:         "server",
-		ListenAddr:   cfg.Bind + ":" + dashPort,
-		ListenStatus: listenStatus,
-		PublicURL:    fmt.Sprintf("http://localhost:%s", dashPort),
-		Strategy:     stratName,
-		Allocation:   allocPolicy,
-	})
+	if cfg.VerboseStartup {
+		cli.PrintStartupBanner(cfg, cli.StartupBannerOptions{
+			Mode:         "server",
+			ListenAddr:   cfg.Bind + ":" + dashPort,
+			ListenStatus: listenStatus,
+			PublicURL:    fmt.Sprintf("http://localhost:%s", dashPort),
+			Strategy:     stratName,
+			Allocation:   allocPolicy,
+		})
+	}
 
 	if listenStatus == "running" {
 		fmt.Println(cli.StyleStdout(cli.WarningStyle, fmt.Sprintf("  pinchtab already running as a daemon on port %s", dashPort)))
@@ -246,7 +268,9 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 			),
 		),
 	)
-	cli.LogSecurityWarnings(cfg)
+	if cfg.VerboseStartup {
+		cli.LogSecurityWarnings(cfg)
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.Bind + ":" + dashPort,

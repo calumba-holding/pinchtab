@@ -44,7 +44,7 @@ Check if the server is running and healthy.
 ## Browser Commands
 
 ### `pinchtab nav <url>`
-Navigate the current tracked tab to a URL, or create one when no current tab is available. This is the browser command that auto-starts the default local server when it is not already running.
+Navigate the current tracked tab to a URL, or create one when no current tab is available. This is the browser command that auto-starts the default local server when it is not already running. Without a session, `nav` uses a shared current tab — set `PINCHTAB_SESSION` first to get an isolated tab.
 
 ```bash
 pinchtab nav https://pinchtab.com

@@ -1,9 +1,13 @@
 package main
 
 import (
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pinchtab/pinchtab/internal/bridge"
 	"github.com/spf13/cobra"
@@ -478,10 +482,16 @@ func defaultTabFlagFromState(cmd *cobra.Command) {
 	if flag == nil || flag.Changed || flag.Value.String() != "" {
 		return
 	}
-	if tabID := readTabStateFile(); tabID != "" {
-		_ = cmd.Flags().Set("tab", tabID)
-		flag.Changed = false
+	tabID := readTabStateFile()
+	if tabID == "" {
+		return
 	}
+	if !probeTabExists(tabID) {
+		_ = os.Remove(tabStateFile())
+		return
+	}
+	_ = cmd.Flags().Set("tab", tabID)
+	flag.Changed = false
 }
 
 func useLocalTabStateFile() bool {
@@ -528,6 +538,53 @@ func ClearTabStateFileIfCurrent(tabID string) {
 		return
 	}
 	_ = os.Remove(tabStateFile())
+}
+
+// probeTabExists checks whether a cached tab ID still exists on the server.
+// Returns true if the tab is valid, the server is unreachable (it may auto-start
+// later), or the check is inconclusive. Returns false only on a definitive 404.
+func probeTabExists(tabID string) bool {
+	base := resolveBaseURL("http://127.0.0.1:9867")
+	token := resolveToken()
+
+	// Fast path: if the port isn't listening, skip the HTTP probe entirely.
+	// This avoids a 2s timeout on every CLI command when the server is down.
+	if !portIsListening(base) {
+		return true
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequest("GET", base+"/tabs/"+tabID+"/title", nil)
+	if err != nil {
+		return true
+	}
+	req.Header.Set("X-PinchTab-Source", "client")
+	if token != "" {
+		if strings.HasPrefix(token, "ses_") {
+			req.Header.Set("Authorization", "Session "+token)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return true
+	}
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.StatusCode != http.StatusNotFound
+}
+
+// portIsListening does a fast TCP dial to check if anything is listening.
+func portIsListening(baseURL string) bool {
+	host := strings.TrimPrefix(baseURL, "http://")
+	host = strings.TrimPrefix(host, "https://")
+	conn, err := net.DialTimeout("tcp", host, 200*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 func addJSONFlag(cmds ...*cobra.Command) {
